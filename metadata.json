@@ -1,0 +1,8 @@
+{
+  "name": "TripUp AI",
+  "description": "Your journey, intelligently planned. Premium 3D travel discovery, AI-powered itineraries, interactive destination explorer, and smart budget tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

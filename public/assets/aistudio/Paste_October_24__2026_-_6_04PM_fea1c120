@@ -1,0 +1,1328 @@
+# MASTER PROMPT: TRIPUP AI
+## Complete 3D AI-Powered Travel Planning Platform
+
+### 1. ROLE AND OBJECTIVE
+
+Act as a senior full-stack engineer, 3D web developer, AI engineer, UI/UX designer, database architect, security engineer, QA engineer, and DevOps engineer.
+
+Build **TripUp AI**, a premium, fully functional, immersive 3D travel-planning website.
+
+**Brand name:** TripUp AI  
+**Tagline:** Your journey, intelligently planned.  
+**Product type:** 3D travel discovery and AI itinerary SaaS platform.
+
+The application must combine a visually impressive 3D website with real, working travel-planning functionality.
+
+This is not merely a landing page, a static UI, a Figma-style mockup, or a collection of disconnected screens.
+
+Build a complete application with:
+- An immersive 3D homepage.
+- Interactive 3D destination exploration.
+- AI-powered itinerary generation.
+- User registration and authentication.
+- Personalized travel dashboards.
+- Trip creation, editing, saving, and deletion.
+- Interactive maps and location search.
+- Weather integration.
+- Budget planning and expense tracking.
+- Shared trips and travel companions.
+- Destination discovery and favorites.
+- Responsive mobile and desktop experiences.
+- Secure database and backend.
+- Automated testing and deployment documentation.
+
+If an external API requires credentials, build the integration correctly, document the required environment variables, and show honest loading, error, and unavailable states. Never pretend an unconfigured integration is working.
+
+Do not stop after creating the homepage. Continue through the frontend, backend, database, AI integration, testing, and deployment setup.
+
+---
+
+### 2. REQUIRED TECHNOLOGY STACK
+
+Use the following stack unless a documented technical limitation requires an alternative.
+
+#### Frontend
+- Next.js with App Router.
+- React.
+- TypeScript with strict mode.
+- Tailwind CSS.
+- shadcn/ui for accessible interface components.
+- Lucide React icons.
+- React Hook Form.
+- Zod validation.
+- Framer Motion for interface transitions.
+
+#### 3D rendering
+- Three.js.
+- React Three Fiber.
+- @react-three/drei.
+- GLSL shaders only where they provide meaningful visual improvements.
+- GLTF/GLB models for optimized 3D assets.
+- WebP or AVIF textures when appropriate.
+- Instanced meshes and level-of-detail techniques for complex scenes.
+
+#### Backend
+- Next.js server-side route handlers.
+- Server-side validation.
+- A dedicated service layer.
+- Secure authentication and authorization.
+- Centralized error handling.
+- Rate limiting and request-size limits.
+
+#### AI
+- Google Gemini API for AI itinerary generation.
+- The official Google Gen AI SDK compatible with the selected Gemini model.
+- Structured JSON output validated with Zod.
+- A dedicated Gemini service module.
+- Controlled retries, timeouts, and usage limits.
+
+Use the current supported Gemini model available to the configured API account. Make the model configurable through server-side environment variables rather than hardcoding an obsolete model name.
+
+#### Database and authentication
+- Supabase PostgreSQL.
+- Supabase Auth.
+- Row-level security.
+- Version-controlled SQL migrations.
+- Supabase Storage only when required.
+
+#### Maps and weather
+- Google Maps Platform for places, maps, and routes, or a documented equivalent.
+- A configurable weather provider.
+- Provider-backed geocoding and route information.
+
+#### Deployment
+- Vercel-compatible configuration.
+- Git-based version control.
+- ESLint and TypeScript checks.
+- Automated tests.
+- A complete README and .env.example.
+
+Never expose Gemini credentials, Supabase service-role credentials, invitation secrets, or privileged provider keys in browser code.
+
+---
+
+### 3. CORE 3D DESIGN VISION
+
+Create an immersive, cinematic, premium travel experience.
+
+The website should feel like entering a beautifully crafted interactive world rather than browsing an ordinary travel template.
+
+#### Visual identity
+
+Use:
+- Warm ivory and soft cream.
+- Deep forest green.
+- Charcoal and near-black.
+- Ocean blue and muted turquoise.
+- Natural earth tones.
+- Carefully controlled cinematic highlights.
+- Subtle glass-like surfaces where useful.
+- Elegant sans-serif typography.
+- Refined borders and shadows.
+- Spacious editorial layouts.
+
+Avoid:
+- Excessive gradients.
+- Cheap-looking 3D assets.
+- Excessive glassmorphism.
+- Constant movement everywhere.
+- Too many floating UI elements.
+- Generic dashboard templates.
+- Oversized animations that prevent users from completing tasks.
+
+The 3D environment must support usability, not interfere with it.
+
+#### Global visual quality
+
+Create a consistent design system covering:
+- Typography.
+- Spacing.
+- Buttons.
+- Cards.
+- Form fields.
+- Dropdowns.
+- Modals.
+- Navigation.
+- Loading skeletons.
+- Notifications.
+- Error states.
+- Empty states.
+- Responsive breakpoints.
+- Keyboard focus states.
+
+Use high-quality assets that are licensed for the intended use. Avoid broken image URLs and unlicensed model downloads.
+
+---
+
+### 4. IMMERSIVE 3D HOMEPAGE
+
+Route: `/`
+
+Build a premium landing page with a large, interactive 3D hero scene.
+
+#### 4.1 Navigation
+
+Include:
+- TripUp AI logo.
+- Home.
+- Explore.
+- Features.
+- About.
+- Help.
+- Login.
+- Get Started.
+
+Requirements:
+- Responsive desktop navigation.
+- Functional mobile menu.
+- Smooth navigation transitions.
+- Authentication-aware buttons.
+- A clear primary call to action.
+
+#### 4.2 Main 3D hero scene
+
+Create a cinematic travel environment featuring:
+- A stylized floating island or miniature travel world.
+- Mountains, beaches, forests, and water.
+- Recognizable destination-inspired architectural elements.
+- Animated clouds and subtle atmospheric particles.
+- Carefully placed vegetation and environmental details.
+- Realistic or stylized physically based materials.
+- Soft directional lighting and ambient occlusion.
+- Gentle camera movement.
+- Subtle parallax interaction.
+- Smooth transitions between scene states.
+
+Make the scene interactive:
+- Allow controlled camera rotation.
+- Allow zoom within sensible limits.
+- Make selected landmarks clickable.
+- Display destination information when a landmark is selected.
+- Allow users to move between selected destinations.
+- Provide a reset-camera control.
+- Keep text and essential buttons in accessible HTML overlays.
+
+Do not create a 3D scene that traps the cursor or blocks normal page scrolling.
+
+#### 4.3 Hero content
+
+Headline:
+
+"Your journey, intelligently planned."
+
+Supporting copy:
+
+"Discover extraordinary destinations and create personalized travel itineraries with AI, immersive 3D exploration, interactive maps, and smart budget planning."
+
+Primary button: `Plan My Trip`
+
+Secondary button: `Explore Destinations`
+
+The primary button must open the actual trip creation workflow. The secondary button must navigate to the Explore page.
+
+Add a compact trip-search form with:
+- Destination.
+- Start date.
+- End date.
+- Number of travelers.
+
+Validate the form and transfer its values into the trip creation workflow.
+
+#### 4.4 Additional homepage sections
+
+Build:
+- Featured destinations.
+- Interactive 3D destination previews.
+- AI itinerary preview.
+- Product feature overview.
+- How-it-works section.
+- Budget-planning preview.
+- Interactive map preview.
+- Frequently asked questions.
+- Final call to action.
+- Footer with support, privacy, terms, and navigation.
+
+Use honest sample content. Label illustrative itineraries and demo statistics clearly.
+
+---
+
+### 5. PERFORMANCE AND ACCESSIBILITY FOR 3D
+
+The website must remain usable on normal laptops, tablets, and phones.
+
+Implement:
+- Lazy-loaded 3D scenes.
+- Dynamic imports for expensive rendering components.
+- Loading placeholders while assets download.
+- Optimized model and texture sizes.
+- Adaptive device pixel ratio.
+- Reduced particle counts on weaker devices.
+- Simplified scenes on mobile.
+- Limited real-time shadows.
+- Frame-rate-conscious animation.
+- Proper disposal of Three.js resources.
+- Error boundaries around 3D components.
+- A static image fallback when WebGL is unavailable.
+- A reduced-motion experience.
+- Support for the operating system's reduced-motion preference.
+- Keyboard-accessible alternatives for important scene actions.
+- Accessible text labels and appropriate contrast.
+
+Do not render a complex WebGL scene on every page unnecessarily.
+
+Use CSS and HTML for ordinary interface elements. Use Three.js for genuine 3D experiences, not for rendering text or standard forms.
+
+Provide a visible way to pause or reduce nonessential animation.
+
+---
+
+### 6. EXPLORE DESTINATIONS
+
+Routes:
+- `/explore`
+- `/explore/[slug]`
+
+Create a searchable destination-discovery experience.
+
+Features:
+- Destination search.
+- Country and region filters.
+- Interest filters.
+- Nature.
+- Culture and history.
+- Food.
+- Adventure.
+- Relaxation.
+- Architecture.
+- Museums.
+- Family-friendly experiences.
+- Saved favorites for authenticated users.
+- Pagination or incremental loading.
+
+Each destination card should include:
+- Destination name.
+- Country or region.
+- Destination image.
+- Brief description.
+- Categories.
+- An Explore button.
+- An optional 3D preview.
+
+#### Destination detail page
+
+Display:
+- Destination overview.
+- Available images.
+- Map location.
+- Suggested attractions.
+- Relevant practical information.
+- Weather information when available.
+- Available source and update information.
+- A Create Trip button.
+- An optional interactive 3D scene.
+
+Use real place-provider data where configured. Clearly distinguish curated demonstration content from verified provider information.
+
+Do not invent coordinates, opening hours, ratings, or travel times.
+
+---
+
+### 7. ABOUT, HELP, AND LEGAL PAGES
+
+Create:
+- `/about`
+- `/help`
+- `/privacy`
+- `/terms`
+
+About:
+Explain the mission of TripUp AI, how AI supports trip planning, and how the application handles information responsibly.
+
+Help:
+Include searchable FAQs, account assistance, itinerary guidance, maps troubleshooting, weather limitations, and AI generation errors.
+
+Privacy and terms:
+Provide clearly identified draft policies for a travel-planning service. Include data collection, third-party integrations, retention, account deletion, and AI processing where relevant. Mark these documents for legal review before public launch.
+
+---
+
+### 8. AUTHENTICATION AND USER ACCOUNTS
+
+Create:
+- `/login`
+- `/signup`
+- `/forgot-password`
+- `/auth/callback`
+- `/settings`
+
+Use Supabase Auth.
+
+Implement:
+- Email and password registration.
+- Login and logout.
+- Email verification when configured.
+- Password recovery.
+- Secure session handling.
+- Authentication-aware navigation.
+- Protected server operations.
+- Useful validation and error messages.
+- Profile editing.
+- Preferred currency.
+- Time zone.
+- Travel preferences.
+- Account deletion.
+
+Create a profile through a secure database trigger or validated server-side operation.
+
+Do not store passwords in application tables.
+
+Never rely exclusively on frontend route protection. Check authorization in server operations and enforce database access through RLS.
+
+---
+
+### 9. USER DASHBOARD
+
+Route: `/dashboard`
+
+Create a polished travel dashboard with subtle 3D elements rather than a constantly animated background.
+
+Include:
+- Personalized welcome message.
+- Profile summary.
+- Create New Trip button.
+- Upcoming trips.
+- Past trips.
+- Draft trips.
+- Saved destinations.
+- Recently updated itineraries.
+- Planned-trip statistics.
+- Estimated travel spending.
+- Upcoming travel dates.
+- Quick actions.
+
+All statistics must come from actual database records.
+
+Support:
+- Opening trips.
+- Editing trips.
+- Duplicating trips.
+- Archiving completed trips.
+- Deleting trips with confirmation.
+- Search and filters.
+- Loading states.
+- Empty states.
+- Error recovery.
+
+Do not fabricate personal travel history or dashboard statistics.
+
+---
+
+### 10. MULTI-STEP TRIP CREATION
+
+Route: `/trips/new`
+
+Build a clear, multi-step trip creation wizard.
+
+#### Step 1: Destination
+- Origin.
+- Destination.
+- Optional intermediate stops.
+- Place autocomplete when configured.
+
+#### Step 2: Dates and travelers
+- Start date.
+- End date.
+- Number of adults.
+- Optional number of children.
+- Accessibility preferences.
+
+#### Step 3: Budget
+- Total budget.
+- Currency.
+- Accommodation included or excluded.
+- Transport-to-destination included or excluded.
+
+Support INR and other appropriate currencies.
+
+#### Step 4: Interests
+- Culture.
+- History.
+- Nature.
+- Food.
+- Adventure.
+- Relaxation.
+- Shopping.
+- Architecture.
+- Art.
+- Family activities.
+- Spiritual and heritage sites.
+
+#### Step 5: Transport and accommodation
+- Walking.
+- Public transport.
+- Driving.
+- Train.
+- Flight.
+- Preferred accommodation category.
+
+#### Step 6: Review
+
+Display every selection and allow the user to change it.
+
+Validate dates, budgets, and traveler counts.
+
+When submitted:
+1. Validate the form.
+2. Authenticate the user.
+3. Create the trip record.
+4. Start generation through a secure server endpoint.
+5. Display generation progress.
+6. Validate the generated itinerary.
+7. Present the draft for review.
+8. Save approved itinerary data.
+
+If generation fails, preserve the trip preferences so the user can retry.
+
+Do not claim that hotels, flights, or other travel products have been booked.
+
+---
+
+### 11. GOOGLE GEMINI AI ITINERARY ENGINE
+
+This is a core feature.
+
+Integrate Google Gemini through a server-side service module.
+
+Suggested module:
+
+`src/lib/ai/gemini.ts`
+
+Keep API credentials on the server.
+
+#### Generation inputs
+
+Provide the model with:
+- Origin and destination.
+- Travel dates.
+- Traveler count.
+- Budget and currency.
+- Interests.
+- Transport preferences.
+- Accommodation preferences.
+- Verified candidate places.
+- Available opening-hour data.
+- Available route information.
+- Relevant weather information.
+- Accessibility and dietary preferences when supplied.
+
+Send only necessary information.
+
+#### Generated itinerary
+
+Return:
+- Trip title.
+- Trip summary.
+- One itinerary day for each travel date.
+- Morning, afternoon, and evening activities.
+- Activity descriptions.
+- Suggested meals.
+- Start times.
+- Durations.
+- Estimated costs.
+- Currency.
+- Place references.
+- Optional alternative activities.
+- Rest periods.
+- Travel notes.
+- Validation warnings.
+- Source references where available.
+
+Distinguish verified data from unverified suggestions.
+
+#### Structured output
+
+Create a strict Zod schema for:
+- Trip metadata.
+- Itinerary days.
+- Activities.
+- Dates and times.
+- Duration.
+- Category.
+- Place ID.
+- Address.
+- Coordinates.
+- Estimated cost.
+- Currency.
+- Verification status.
+- Source URL.
+- Validation warnings.
+
+Never trust arbitrary model output as application data.
+
+Validate every response before saving it.
+
+#### Schedule validation
+
+Check:
+- All itinerary dates fall within the trip.
+- Time formats are valid.
+- Durations are positive.
+- Activities do not overlap unintentionally.
+- Available route durations are accounted for.
+- Verified opening hours are respected when data exists.
+- The schedule is practical.
+- The budget is compared with the estimates.
+- Unverified locations are flagged.
+
+Never invent travel durations or claim that a place is open without reliable supporting data.
+
+#### AI reliability
+
+Implement:
+- Request validation.
+- Timeouts.
+- Bounded retries.
+- Rate limiting.
+- Usage limits.
+- Structured logs without sensitive prompt contents.
+- Safe error messages.
+- Provider-failure handling.
+- JSON parsing and schema validation.
+- A clear retry action.
+
+Never automatically repeat costly AI calls indefinitely.
+
+---
+
+### 12. ITINERARY EDITOR
+
+Route: `/trips/[id]`
+
+Users must be able to:
+- View every itinerary day.
+- Edit activity titles and descriptions.
+- Change dates, times, and durations.
+- Reorder activities.
+- Add custom activities.
+- Remove activities.
+- Replace suggested locations.
+- Regenerate an individual day.
+- Regenerate an entire draft.
+- Accept or reject AI suggestions.
+- Save changes.
+- Undo unsaved changes where practical.
+
+Preserve existing user edits unless the user explicitly confirms an operation that will replace them.
+
+Show:
+- Daily timeline.
+- Activity categories.
+- Estimated costs.
+- Available addresses.
+- Route information when available.
+- Verification labels.
+- Weather-related notes when appropriate.
+
+Use an elegant timeline interface with optional miniature 3D destination illustrations.
+
+Do not force the user to interact with 3D to edit an itinerary.
+
+---
+
+### 13. INTERACTIVE 3D DESTINATION EXPLORER
+
+Build a dedicated immersive destination-exploration experience.
+
+Possible route: `/explore/3d`
+
+Create a navigable 3D world containing destination-inspired environments.
+
+Include:
+- Landscapes.
+- Islands.
+- Mountains.
+- Coastlines.
+- Architectural landmarks.
+- Selectable destination markers.
+- Destination information panels.
+- Camera controls.
+- A reset-view button.
+- Search.
+- Category filters.
+- Navigation back to the normal Explore page.
+
+Selecting a destination should display its actual configured destination data and provide a working link to the destination detail page.
+
+Use original or properly licensed assets.
+
+Where realistic 3D landmarks are unavailable, use stylized representations and label them appropriately.
+
+Do not imply that a decorative 3D model is an accurate geographical representation.
+
+Keep this experience separate from essential trip-editing workflows.
+
+---
+
+### 14. MAPS, PLACES, AND ROUTING
+
+Integrate Google Maps Platform or a documented alternative.
+
+Implement:
+- Place search.
+- Place details.
+- Geocoding when required.
+- Map markers.
+- Selected-activity highlighting.
+- Ordered itinerary stops.
+- Directions links.
+- Route distance and duration when supported.
+- Transport-mode selection where supported.
+- Route recalculation after relevant itinerary changes.
+
+Synchronize the selected itinerary activity with its map marker.
+
+Store stable provider place IDs and verified coordinates where available.
+
+Restrict browser API keys to authorized domains and necessary APIs. Keep privileged operations server-side.
+
+If maps fail to load, show the itinerary and useful location links without blocking the application.
+
+Do not fabricate routes, coordinates, or travel times.
+
+---
+
+### 15. WEATHER INTEGRATION
+
+Create a weather panel for destinations and relevant itinerary days.
+
+Display, when available:
+- Temperature.
+- Weather conditions.
+- Precipitation probability.
+- Wind information.
+- Forecast period.
+- Local time zone.
+- Data source.
+- Last update.
+
+Weather-aware planning may suggest indoor alternatives or flag activities that could be affected by conditions.
+
+Respect the configured provider's forecast horizon.
+
+Do not display a long-range weather estimate as a reliable daily forecast.
+
+Provide clear fallback states when weather information is unavailable or stale.
+
+---
+
+### 16. BUDGET AND EXPENSE TRACKING
+
+Route: `/trips/[id]/budget`
+
+Create a working budget-management dashboard.
+
+Categories:
+- Transport.
+- Accommodation.
+- Food and drinks.
+- Attractions.
+- Shopping.
+- Other.
+
+Display:
+- Planned budget.
+- Estimated expenses.
+- Actual recorded spending.
+- Remaining budget.
+- Category breakdown.
+- Daily spending.
+- Expense history.
+- Budget warning status.
+
+Allow users to:
+- Add expenses.
+- Edit expenses.
+- Delete expenses.
+- Assign categories.
+- Record actual amounts.
+- Select currency.
+- Set expense dates.
+- Filter expenses.
+
+Use a suitable charting library for category and daily breakdowns.
+
+Keep estimated costs separate from actual expenses.
+
+Never add amounts in different currencies without an explicit, timestamped conversion rate.
+
+If the estimated itinerary exceeds the budget, offer an AI-powered request for lower-cost alternatives.
+
+---
+
+### 17. SHARED TRIPS AND COMPANIONS
+
+Route: `/trips/[id]/share`
+
+Implement controlled trip sharing.
+
+Roles:
+- Owner.
+- Editor.
+- Viewer.
+
+Features:
+- Invitation creation.
+- Invitation expiration.
+- Invitation acceptance and rejection.
+- Member list.
+- Permission changes.
+- Member removal.
+- Shared itinerary access.
+- Optional comments.
+- Expense visibility according to permissions.
+
+Use secure invitations and hashed invitation tokens.
+
+Enforce permissions on the server and database.
+
+Do not allow users to change request parameters to gain ownership or access to another person's trip.
+
+If full collaborative editing cannot be completed immediately, implement secure read-only sharing first and document the limitation.
+
+---
+
+### 18. SAVED DESTINATIONS AND TRIP MANAGEMENT
+
+Implement:
+- Save favorite destinations.
+- Remove favorites.
+- Search saved trips.
+- Filter by date and status.
+- Duplicate trips.
+- Archive completed trips.
+- Reopen archived trips.
+- Delete trips with confirmation.
+- Print-friendly itineraries.
+- PDF export if implemented reliably.
+
+Duplicating a trip must create independent related itinerary and activity records.
+
+Ensure destructive operations are authorized and database changes remain consistent.
+
+---
+
+### 19. DATABASE SCHEMA
+
+Use Supabase PostgreSQL and version-controlled migrations.
+
+Create tables for:
+
+#### `profiles`
+- id.
+- full_name.
+- avatar_url.
+- preferred_currency.
+- timezone.
+- preferences.
+- created_at.
+- updated_at.
+
+#### `trips`
+- id.
+- user_id.
+- title.
+- origin.
+- destination.
+- destination_place_id.
+- start_date.
+- end_date.
+- travelers.
+- budget_amount.
+- currency.
+- travel_style.
+- interests.
+- transport_preferences.
+- accommodation_preferences.
+- status.
+- created_at.
+- updated_at.
+
+#### `itinerary_days`
+- id.
+- trip_id.
+- day_number.
+- date.
+- summary.
+- created_at.
+- updated_at.
+
+#### `activities`
+- id.
+- itinerary_day_id.
+- title.
+- description.
+- place_id.
+- address.
+- latitude.
+- longitude.
+- start_time.
+- end_time.
+- duration_minutes.
+- estimated_cost.
+- currency.
+- category.
+- sort_order.
+- source_url.
+- verification_status.
+- created_at.
+- updated_at.
+
+#### `expenses`
+- id.
+- trip_id.
+- user_id.
+- category.
+- description.
+- estimated_amount.
+- actual_amount.
+- currency.
+- expense_date.
+- created_at.
+- updated_at.
+
+#### `trip_members`
+- id.
+- trip_id.
+- user_id.
+- role.
+- joined_at.
+
+#### `trip_invitations`
+- id.
+- trip_id.
+- invited_email.
+- role.
+- token_hash.
+- expires_at.
+- accepted_at.
+- created_at.
+
+#### `ai_generations`
+- id.
+- trip_id.
+- user_id.
+- status.
+- input_summary.
+- error_message.
+- created_at.
+- completed_at.
+
+#### `saved_destinations`
+- id.
+- user_id.
+- place_id.
+- destination_name.
+- created_at.
+
+Add additional tables only when needed for implemented functionality.
+
+Use UUIDs, foreign keys, indexes, check constraints, appropriate deletion behavior, and consistent timestamps.
+
+Never store passwords manually.
+
+Do not store secrets or unnecessarily sensitive personal information in itinerary records or application logs.
+
+---
+
+### 20. DATABASE SECURITY
+
+Enable and test row-level security on all user-owned tables.
+
+Implement policies for:
+- Profiles.
+- Trips.
+- Itinerary days.
+- Activities.
+- Expenses.
+- Trip members.
+- Invitations.
+- AI generation records.
+- Saved destinations.
+
+Requirements:
+- Users can access their own private trips.
+- Shared access follows membership roles.
+- Only permitted users can edit shared content.
+- Only owners can delete shared trips or change ownership-related permissions.
+- Expense access follows the intended sharing policy.
+- Invitation tokens expire and cannot be reused after acceptance.
+- Private data cannot be accessed by changing a URL or request ID.
+- Public visitors cannot read private trip records.
+- Service-role credentials never reach the browser.
+
+Test authorization using separate user accounts and database policies.
+
+---
+
+### 21. API ROUTES
+
+Create authenticated, validated server-side endpoints as needed.
+
+Suggested routes:
+
+- `POST /api/trips`
+- `GET /api/trips`
+- `GET /api/trips/[id]`
+- `PATCH /api/trips/[id]`
+- `DELETE /api/trips/[id]`
+- `POST /api/trips/[id]/generate`
+- `POST /api/trips/[id]/regenerate-day`
+- `POST /api/trips/[id]/activities`
+- `PATCH /api/activities/[id]`
+- `DELETE /api/activities/[id]`
+- `POST /api/trips/[id]/expenses`
+- `PATCH /api/expenses/[id]`
+- `DELETE /api/expenses/[id]`
+- `POST /api/trips/[id]/invitations`
+- `POST /api/invitations/accept`
+- `GET /api/places/search`
+- `GET /api/places/[id]`
+- `POST /api/routes`
+- `GET /api/weather`
+- `POST /api/ai/suggestions`
+
+Use appropriate HTTP methods, status codes, authentication checks, validation, and consistent error responses.
+
+Never create a generic API endpoint that permits arbitrary database access.
+
+---
+
+### 22. PROJECT STRUCTURE
+
+Use a maintainable structure similar to:
+
+```text
+tripup-ai/
+├── public/
+│   ├── images/
+│   ├── models/
+│   ├── textures/
+│   └── icons/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx
+│   │   ├── explore/
+│   │   ├── about/
+│   │   ├── help/
+│   │   ├── privacy/
+│   │   ├── terms/
+│   │   ├── login/
+│   │   ├── signup/
+│   │   ├── dashboard/
+│   │   ├── trips/
+│   │   ├── settings/
+│   │   └── api/
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── layout/
+│   │   ├── destinations/
+│   │   ├── itinerary/
+│   │   ├── maps/
+│   │   ├── budget/
+│   │   └── three/
+│   ├── lib/
+│   │   ├── ai/
+│   │   │   └── gemini.ts
+│   │   ├── supabase/
+│   │   ├── maps/
+│   │   ├── weather/
+│   │   ├── validation/
+│   │   ├── security/
+│   │   └── utils/
+│   ├── services/
+│   ├── schemas/
+│   └── types/
+├── supabase/
+│   └── migrations/
+├── tests/
+├── .env.example
+├── .gitignore
+├── package.json
+├── README.md
+└── configuration files
+```
+
+Adapt the structure to the actual Next.js project rather than duplicating existing files or breaking working functionality.
+
+---
+
+### 23. ENVIRONMENT VARIABLES
+
+Create `.env.example` with placeholders such as:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+GEMINI_API_KEY=
+GEMINI_MODEL=
+
+GOOGLE_MAPS_API_KEY=
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+
+WEATHER_API_KEY=
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+Use the appropriate Supabase publishable-key configuration supported by the installed SDK; keep compatibility with the project's actual Supabase setup.
+
+Only expose explicitly public, appropriately restricted browser keys.
+
+Never commit real credentials to Git.
+
+Explain where each key comes from, which keys are public, which must remain server-side, and which integrations require billing or API activation.
+
+---
+
+### 24. RESPONSIVE EXPERIENCE
+
+Support:
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile.
+
+Desktop:
+- Full cinematic 3D experience.
+- Rich dashboard layouts.
+- Side-by-side itinerary and map views where appropriate.
+
+Tablet:
+- Simplified 3D scenes.
+- Responsive navigation.
+- Adapted dashboard and itinerary layouts.
+
+Mobile:
+- Compact scenes.
+- Touch-friendly controls.
+- Single-column layouts.
+- Accessible menus.
+- Reduced rendering complexity.
+- Clear itinerary editing controls.
+- No horizontal overflow.
+
+All essential functionality must remain available even if the 3D scene is disabled.
+
+---
+
+### 25. TESTING AND QUALITY ASSURANCE
+
+Implement appropriate automated tests.
+
+#### Unit tests
+- Date validation.
+- Budget calculations.
+- Currency handling.
+- Itinerary schema validation.
+- Schedule conflict detection.
+- Role and permission checks.
+
+#### Integration tests
+- Trip creation.
+- Trip editing.
+- AI generation error handling.
+- Expense CRUD.
+- Authentication.
+- Database authorization.
+- Invitation expiration and acceptance.
+
+#### End-to-end tests
+- Registration and login.
+- Create a trip.
+- Generate an itinerary.
+- Edit and save an activity.
+- Reopen a saved trip.
+- Record an expense.
+- Save a destination.
+- Delete a trip with confirmation.
+
+#### 3D testing
+- Scene loading.
+- Loading and error fallbacks.
+- Mobile layout.
+- Reduced-motion mode.
+- WebGL-unavailable fallback.
+- Keyboard accessibility of essential controls.
+
+Also run:
+- TypeScript checks.
+- ESLint.
+- Production build.
+- Database migration checks.
+- Dependency and secret checks.
+
+Do not claim that tests pass unless they have actually been run.
+
+---
+
+### 26. PERFORMANCE TARGETS
+
+Optimize the experience using measurable results rather than visual guesses.
+
+Aim for:
+- Good Core Web Vitals.
+- Fast initial content rendering.
+- Stable layouts.
+- Minimal unnecessary JavaScript.
+- Lazy-loaded 3D assets.
+- Optimized images.
+- Minimal blocking third-party scripts.
+- Responsive interactions.
+- Controlled GPU usage.
+
+Treat approximately 60 FPS on capable desktop hardware as a goal for lightweight scenes, not a guarantee across all devices.
+
+Prioritize usable content and navigation before loading heavy 3D assets.
+
+---
+
+### 27. DEPLOYMENT AND DOCUMENTATION
+
+Prepare the application for deployment on Vercel with Supabase.
+
+Provide a complete README explaining:
+- Prerequisites.
+- Node.js requirements.
+- Installation.
+- Local development.
+- Environment variables.
+- Supabase project setup.
+- Database migrations.
+- Gemini API setup.
+- Maps configuration.
+- Weather configuration.
+- Testing.
+- Production build.
+- Deployment.
+- Troubleshooting.
+
+Clearly document any integration that remains unconfigured.
+
+Do not claim production readiness until required configuration, testing, and security checks have been completed.
+
+---
+
+### 28. DEVELOPMENT EXECUTION RULES
+
+Follow these rules throughout implementation.
+
+1. Inspect the existing project before changing files.
+2. Preserve working code whenever practical.
+3. Keep the product name consistently set to **TripUp AI**.
+4. Use reusable, typed components.
+5. Separate client-side and server-side responsibilities.
+6. Implement real interactions instead of decorative buttons.
+7. Validate all external and user-supplied data.
+8. Never expose API secrets.
+9. Never invent successful bookings, verified places, weather results, or AI outputs.
+10. Do not use hardcoded demo data as a substitute for required backend functionality.
+11. Clearly label any demonstration or fallback content.
+12. Make every essential feature usable without 3D rendering.
+13. Test each major feature before proceeding.
+14. Fix errors instead of hiding them with unsafe workarounds.
+15. Do not overwrite project configuration without checking existing dependencies.
+16. Avoid installing unnecessary libraries.
+17. Keep documentation synchronized with actual implementation.
+18. Do not mark a feature complete until its required behavior works.
+
+---
+
+### 29. IMPLEMENTATION PHASES
+
+Build the product incrementally.
+
+**Phase 1 — Foundation and 3D design**
+- Inspect the project.
+- Configure the application structure.
+- Establish TripUp AI branding.
+- Build the responsive homepage.
+- Implement the initial 3D hero scene.
+- Add loading and fallback experiences.
+- Verify development and production builds.
+
+**Phase 2 — Backend and AI**
+- Configure Supabase.
+- Add database migrations.
+- Implement authentication.
+- Integrate Google Gemini securely.
+- Build structured itinerary generation.
+- Add validation and error handling.
+
+**Phase 3 — Functional travel planning**
+- Build trip creation.
+- Implement itinerary editing.
+- Add dashboard and saved trips.
+- Implement budget and expense tracking.
+- Add destination search.
+
+**Phase 4 — Maps and travel intelligence**
+- Integrate places and routing.
+- Add weather information.
+- Build the 3D destination explorer.
+- Synchronize itinerary and map selections.
+
+**Phase 5 — Sharing and account features**
+- Implement trip invitations.
+- Enforce member permissions.
+- Add profile settings.
+- Complete trip duplication, archiving, export, and deletion.
+
+**Phase 6 — Testing and deployment**
+- Run automated tests.
+- Verify database security.
+- Test mobile and reduced-motion experiences.
+- Optimize 3D performance.
+- Complete documentation.
+- Prepare the deployment configuration.
+
+At the end of every phase, report:
+- Files created or modified.
+- Features implemented.
+- Commands executed.
+- Tests and build results.
+- Remaining issues.
+- Required environment variables.
+- Exact next steps.
+
+Do not pretend a phase is complete if required functionality is missing.
+
+---
+
+### 30. FINAL ACCEPTANCE CRITERIA
+
+The finished TripUp AI application must have:
+
+- A premium, immersive 3D homepage.
+- A functioning 3D destination explorer.
+- Responsive layouts and accessible fallbacks.
+- Working registration and authentication.
+- A functional travel dashboard.
+- Multi-step trip creation.
+- Server-side Google Gemini itinerary generation.
+- Editable and persistent itineraries.
+- Destination search and saved favorites.
+- Interactive maps when configured.
+- Weather integration when configured.
+- Working budget and expense management.
+- Controlled trip sharing.
+- Secure database policies.
+- Validated API endpoints.
+- Loading, error, and empty states.
+- Automated tests and setup documentation.
+- Deployment-ready configuration.
+
+The product must be visually impressive, technically maintainable, secure, and genuinely usable.
+
+**Start by inspecting the current VS Code project and its existing files. Then implement Phase 1, verify it works, and proceed through the remaining phases without destroying working functionality.**
