@@ -73,12 +73,14 @@ async function startServer() {
         startDate: input.startDate,
         endDate: input.endDate,
         travelers: Number(input.travelers) || 2,
-        budgetAmount: Number(input.budgetAmount) || 2500,
-        currency: input.currency || 'USD',
+        budgetAmount: typeof input.budgetAmount === 'number' ? input.budgetAmount : (Number(input.budgetAmount) || 0),
+        currency: input.currency || 'INR',
         interests: input.interests || ['culture', 'food', 'nature'],
         travelStyle: input.travelStyle || 'balanced',
-        transportPreferences: input.transportPreferences || ['walking', 'public_transport'],
+        transportPreferences: input.transportPreferences || ['private_car', 'walking'],
         accommodationPreferences: input.accommodationPreferences || 'boutique hotel',
+        dietaryPreference: input.dietaryPreference || 'veg_nonveg',
+        customPrompt: input.customPrompt || '',
       });
 
       return res.json(itineraryResult);

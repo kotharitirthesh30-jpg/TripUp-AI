@@ -5,7 +5,9 @@ import {
   doActivitiesOverlap,
   validateDaySchedule,
   calculateTripDurationDays,
-  hasPermission
+  hasPermission,
+  convertCurrency,
+  formatCurrency
 } from './trip-logic';
 import { Expense, Activity } from '../types/travel';
 
@@ -141,3 +143,30 @@ test('hasPermission enforces Owner, Editor, Viewer roles', () => {
   assert.equal(hasPermission('viewer', 'edit'), false);
   assert.equal(hasPermission('viewer', 'delete'), false);
 });
+
+test('calculateBudgetSummary supports budget starting at 0 cleanly', () => {
+  const summaryZeroBudget = calculateBudgetSummary(0, []);
+  assert.equal(summaryZeroBudget.budgetAmount, 0);
+  assert.equal(summaryZeroBudget.remainingBudget, 0);
+  assert.equal(summaryZeroBudget.isOverBudget, false);
+});
+
+test('convertCurrency correctly converts USD to INR and other currencies', () => {
+  const inr = convertCurrency(100, 'USD', 'INR');
+  assert.equal(inr, 8650);
+
+  const zeroInr = convertCurrency(0, 'USD', 'INR');
+  assert.equal(zeroInr, 0);
+
+  const usdFromInr = convertCurrency(8650, 'INR', 'USD');
+  assert.equal(usdFromInr, 100);
+});
+
+test('formatCurrency outputs rupee symbol and formatting for INR', () => {
+  const formattedInr = formatCurrency(50000, 'INR');
+  assert.match(formattedInr, /₹50,?000/);
+
+  const formattedUsd = formatCurrency(1200, 'USD');
+  assert.equal(formattedUsd, '$1,200');
+});
+

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTravel } from '../../context/TravelContext';
-import { TravelCategory, Trip } from '../../types/travel';
+import { TravelCategory, Trip, DietaryPreference } from '../../types/travel';
+import { SUPPORTED_CURRENCIES } from '../../lib/trip-logic';
 import {
   MapPin,
   Calendar,
@@ -15,7 +16,12 @@ import {
   Loader2,
   AlertCircle,
   Globe,
-  Search
+  Search,
+  Car,
+  Utensils,
+  MessageSquare,
+  HelpCircle,
+  ShieldCheck
 } from 'lucide-react';
 
 interface NewTripWizardProps {
@@ -38,14 +44,73 @@ const CATEGORIES: { id: TravelCategory; label: string; icon: string; desc: strin
   { id: 'shopping', label: 'Artisanal Shopping', icon: '🛍️', desc: 'Local craft ateliers & vintage districts' },
 ];
 
-const CURRENCIES = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+const DIETARY_OPTIONS: { id: DietaryPreference; label: string; icon: string; desc: string; badge: string }[] = [
+  {
+    id: 'pure_veg',
+    label: 'Pure Veg',
+    icon: '🥦',
+    badge: '100% Vegetarian & Jain Options',
+    desc: 'Strictly vegetarian kitchens, fresh greens, dairy/no-egg, and Jain-friendly dining recommendations.',
+  },
+  {
+    id: 'veg_nonveg',
+    label: 'Veg & Non-Veg',
+    icon: '🥗🍗',
+    badge: 'Mixed & Flexible',
+    desc: 'Versatile dining offering both exquisite vegetarian options and authentic regional meat dishes.',
+  },
+  {
+    id: 'only_nonveg',
+    label: 'Only Non-Veg',
+    icon: '🥩🍤',
+    badge: 'Poultry, Meat & Seafood',
+    desc: 'Focused on regional butcher cuts, grilled meats, coastal fish, and local poultry delicacies.',
+  },
+  {
+    id: 'vegan',
+    label: 'Vegan',
+    icon: '🌱',
+    badge: '100% Plant-Based',
+    desc: 'Completely dairy-free, egg-free, and plant-derived organic meals.',
+  },
+  {
+    id: 'halal',
+    label: 'Halal',
+    icon: '🌙',
+    badge: 'Halal Certified',
+    desc: 'Certified halal eateries, alcohol-free culinary environments, and compliant dining.',
+  },
+  {
+    id: 'kosher',
+    label: 'Kosher',
+    icon: '✡️',
+    badge: 'Kosher Certified',
+    desc: 'Dedicated kosher dining venues compliant with Jewish dietary traditions.',
+  },
+  {
+    id: 'gluten_free',
+    label: 'Gluten-Free',
+    icon: '🌾❌',
+    badge: 'Celiac Friendly',
+    desc: 'Gluten-conscious bakeries, wheat-free options, and cross-contamination safe kitchens.',
+  },
+];
+
+const TRANSPORT_CHOICES = [
+  { id: 'private_car', label: 'Private Car / Rental Car', icon: Car, desc: 'Dedicated automobile for road trips, scenic detours & halts' },
+  { id: 'taxi_cab', label: 'Cab / Taxi / Chauffeur', icon: Car, desc: 'Convenient on-demand city cabs and point-to-point transfers' },
+  { id: 'walking', label: 'Walking & Strolling', icon: Compass, desc: 'Pedestrian-friendly paths, historic cobblestones and scenic trails' },
+  { id: 'train', label: 'High-Speed Trains', icon: Train, desc: 'Express intercity rail, bullet trains and scenic panoramic tracks' },
+  { id: 'public_transport', label: 'Metro & City Bus', icon: Train, desc: 'Economical subway networks, trams, and urban transit systems' },
+  { id: 'flight', label: 'Domestic Flights & Ferries', icon: Globe, desc: 'Island hops, coastal ferries, and rapid regional air corridors' },
+];
+
+const QUICK_PROMPT_SUGGESTIONS = [
+  'I need a halt between source and destination for a day and explore nearby area',
+  'Prioritize scenic mountain or coastal drives with private car',
+  'Strictly recommend pure veg restaurants with regional specialties',
+  'Keep mornings relaxed after 10 AM with artisan tea and coffee shops',
+  'Include offbeat heritage ruins and avoid congested tourist traps',
 ];
 
 export const NewTripWizard: React.FC<NewTripWizardProps> = ({
@@ -56,7 +121,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
   initialEndDate = '2026-11-15',
   initialTravelers = 2,
 }) => {
-  const { createTrip, destinations } = useTravel();
+  const { createTrip, destinations, currentCurrency } = useTravel();
 
   const [step, setStep] = useState<number>(1);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -69,19 +134,27 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
   const [travelers, setTravelers] = useState(initialTravelers);
-  const [budgetAmount, setBudgetAmount] = useState(2800);
-  const [currency, setCurrency] = useState('USD');
+
+  // Budget MUST start at 0 compulsorily as requested by the user
+  const [budgetAmount, setBudgetAmount] = useState<number>(0);
+  const [currency, setCurrency] = useState<string>(currentCurrency || 'INR');
+
   const [travelStyle, setTravelStyle] = useState<'relaxed' | 'balanced' | 'packed'>('balanced');
+  const [dietaryPreference, setDietaryPreference] = useState<DietaryPreference>('pure_veg');
+  const [customPrompt, setCustomPrompt] = useState<string>('');
+
   const [selectedInterests, setSelectedInterests] = useState<TravelCategory[]>([
     'culture',
     'heritage',
     'food',
     'nature',
   ]);
-  const [transportPrefs, setTransportPrefs] = useState<string[]>(['walking', 'public_transport']);
+  const [transportPrefs, setTransportPrefs] = useState<string[]>(['private_car', 'walking']);
   const [accommodationPref, setAccommodationPref] = useState('Boutique Hotel / Machiya');
   const [quickContinent, setQuickContinent] = useState<string>('all');
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const activeCurrencyInfo = SUPPORTED_CURRENCIES[currency] || { symbol: currency, name: currency };
 
   const handleInterestToggle = (id: TravelCategory) => {
     setSelectedInterests(prev =>
@@ -91,7 +164,9 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
 
   const handleTransportToggle = (t: string) => {
     setTransportPrefs(prev =>
-      prev.includes(t) ? prev.filter(item => item !== t) : [...prev, t]
+      prev.includes(t)
+        ? prev.length > 1 ? prev.filter(item => item !== t) : prev
+        : [...prev, t]
     );
   };
 
@@ -118,8 +193,8 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
       }
     }
     if (s === 3) {
-      if (!budgetAmount || budgetAmount <= 0) {
-        setErrorMsg('Please enter a valid budget amount.');
+      if (typeof budgetAmount !== 'number' || budgetAmount < 0 || isNaN(budgetAmount)) {
+        setErrorMsg('Please enter a valid budget amount (0 or more).');
         return false;
       }
     }
@@ -150,7 +225,6 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
     setGenerationStepText('Connecting to Google Gemini API...');
 
     try {
-      // Step simulated updates for feedback
       setTimeout(() => setGenerationStepText('Architecting daily timeline & route distances...'), 1200);
       setTimeout(() => setGenerationStepText('Balancing budget estimates & verified venues...'), 2400);
 
@@ -169,6 +243,8 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
           interests: selectedInterests,
           transportPreferences: transportPrefs,
           accommodationPreferences: accommodationPref,
+          dietaryPreference,
+          customPrompt,
         }),
       });
 
@@ -176,7 +252,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
       if (response.ok) {
         genData = await response.json();
       } else {
-        // Fallback to local smart generator if fetch fails
+        // Local procedural smart generator fallback
         const { generateSmartItinerary } = await import('../../lib/ai/itinerary-generator');
         genData = generateSmartItinerary({
           origin,
@@ -190,10 +266,12 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
           travelStyle,
           transportPreferences: transportPrefs,
           accommodationPreferences: accommodationPref,
+          dietaryPreference,
+          customPrompt,
         });
       }
 
-      // Find matching destination cover image
+      // Match cover image
       const matchedDest = destinations.find(d =>
         destination.toLowerCase().includes(d.name.toLowerCase()) ||
         destination.toLowerCase().includes(d.country.toLowerCase())
@@ -203,15 +281,18 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         matchedDest?.imageUrl ||
         'https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1200&auto=format&fit=crop';
 
-      // Build initial recorded budget expenses
+      // Build initial recorded budget expenses (adjusted if budget starts at 0)
+      const baseAccommodationCost = budgetAmount > 0 ? Math.round(budgetAmount * 0.45) : 0;
+      const baseTransportCost = budgetAmount > 0 ? Math.round(budgetAmount * 0.15) : 0;
+
       const expenses = [
         {
           id: `exp-${Date.now()}-1`,
           tripId: '',
           category: 'accommodation' as const,
           description: `${accommodationPref} Booking`,
-          estimatedAmount: Math.round(budgetAmount * 0.45),
-          actualAmount: Math.round(budgetAmount * 0.42),
+          estimatedAmount: baseAccommodationCost,
+          actualAmount: baseAccommodationCost,
           currency,
           expenseDate: startDate,
         },
@@ -219,9 +300,9 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
           id: `exp-${Date.now()}-2`,
           tripId: '',
           category: 'transport' as const,
-          description: `Transit & Rail Pass`,
-          estimatedAmount: Math.round(budgetAmount * 0.15),
-          actualAmount: Math.round(budgetAmount * 0.14),
+          description: transportPrefs.includes('private_car') ? 'Private Car / Fuel & Tolls' : 'Transit & Passes',
+          estimatedAmount: baseTransportCost,
+          actualAmount: baseTransportCost,
           currency,
           expenseDate: startDate,
         },
@@ -229,7 +310,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
 
       const newTrip = createTrip({
         userId: 'usr-101',
-        title: genData.title || `${destination} Adventure`,
+        title: genData.title || `${destination} Journey`,
         origin,
         destination,
         destinationPlaceId: matchedDest?.id,
@@ -242,6 +323,8 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         interests: selectedInterests,
         transportPreferences: transportPrefs,
         accommodationPreferences: accommodationPref,
+        dietaryPreference,
+        customPrompt,
         status: 'upcoming',
         coverImageUrl,
         itinerary: genData.days || [],
@@ -258,23 +341,43 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
     }
   };
 
+  // Helper for preset budget values depending on currency
+  const getPresetBudgets = () => {
+    if (currency === 'INR') {
+      return [
+        { amount: 0, label: '₹0 (Zero Start / Flexible)', desc: 'Start from 0 and log expenses as you go' },
+        { amount: 35000, label: '₹35,000 (Value)', desc: 'Hostels, budget stays, regional transit' },
+        { amount: 85000, label: '₹85,000 (Comfort)', desc: 'Boutique hotels, curated meals, private car' },
+        { amount: 200000, label: '₹2,00,000 (Luxury)', desc: '5-star resorts, private guides, signature dining' },
+      ];
+    }
+    return [
+      { amount: 0, label: '$0 (Zero Start / Flexible)', desc: 'Start from 0 and log expenses as you go' },
+      { amount: 1200, label: '$1,200 (Value)', desc: 'Hostels, budget stays, regional transit' },
+      { amount: 2800, label: '$2,800 (Comfort)', desc: 'Boutique hotels, curated meals, private car' },
+      { amount: 6500, label: '$6,500 (Luxury)', desc: '5-star resorts, private guides, signature dining' },
+    ];
+  };
+
   return (
-    <div className="max-w-3xl mx-auto bg-[#121c17] border border-[#2b4437] rounded-2xl shadow-2xl overflow-hidden p-6 md:p-8 text-[#f4efe6]">
+    <div className="max-w-3xl mx-auto bg-[#121c17] border border-[#2b4437] rounded-2xl shadow-2xl overflow-hidden p-4 sm:p-6 md:p-8 text-[#f4efe6]">
       {/* Wizard Header & Progress */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-[#1f372c] rounded-xl text-[#52b788]">
+      <div className="mb-6 md:mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 bg-[#1f372c] rounded-xl text-[#52b788] shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-xl md:text-2xl font-bold font-serif text-[#f4efe6]">Create Intelligently Planned Trip</h2>
-              <p className="text-xs text-[#8ca395]">Step {step} of 6 — Personalized AI Itinerary Architect</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold font-serif text-[#f4efe6] truncate">
+                Create Intelligently Planned Trip
+              </h2>
+              <p className="text-xs text-[#8ca395]">Step {step} of 6 — Personalized AI Journey Architect</p>
             </div>
           </div>
           <button
             onClick={onCancel}
-            className="text-xs text-[#8ca395] hover:text-[#e5dfd5] px-3 py-1.5 rounded-lg border border-[#2b4437] hover:bg-[#1a2b22] transition-colors"
+            className="text-xs text-[#8ca395] hover:text-[#e5dfd5] px-3 py-1.5 rounded-lg border border-[#2b4437] hover:bg-[#1a2b22] transition-colors shrink-0"
           >
             Cancel
           </button>
@@ -305,12 +408,12 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         <div className="space-y-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">Where are you traveling?</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">Where are you traveling?</h3>
               <p className="text-xs text-[#8ca395]">
                 Plan a journey to any city, national park, island, or country across the entire world.
               </p>
             </div>
-            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#182a20] border border-[#2b4437] text-[11px] font-semibold text-[#52b788]">
+            <div className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#182a20] border border-[#2b4437] text-[11px] font-semibold text-[#52b788] shrink-0">
               <Globe className="w-3.5 h-3.5" />
               <span>Worldwide Coverage</span>
             </div>
@@ -334,7 +437,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  placeholder="e.g. Kyoto, Japan or Rome, Italy or Banff, Canada"
+                  placeholder="e.g. Kyoto, Japan or New Delhi, India or Amalfi Coast, Italy"
                   className="w-full bg-[#182620] border border-[#2b4437] rounded-xl px-4 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788]"
                 />
                 <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-[#799486] pointer-events-none" />
@@ -360,12 +463,12 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                         }}
                         className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1a2c22] flex items-center justify-between text-xs text-[#c0d1c7] hover:text-white transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-[#52b788]" />
-                          <span className="font-medium text-white">{d.name}</span>
-                          <span className="text-[#889e92]">({d.country})</span>
+                        <div className="flex items-center gap-2 truncate">
+                          <MapPin className="w-3.5 h-3.5 text-[#52b788] shrink-0" />
+                          <span className="font-medium text-white truncate">{d.name}</span>
+                          <span className="text-[#889e92] shrink-0">({d.country})</span>
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#182620] border border-[#263b2f] text-[#52b788]">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#182620] border border-[#263b2f] text-[#52b788] shrink-0 ml-2">
                           {d.continent || d.region}
                         </span>
                       </button>
@@ -393,22 +496,20 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                 type="text"
                 value={origin}
                 onChange={e => setOrigin(e.target.value)}
-                placeholder="e.g. San Francisco (SFO)"
+                placeholder="e.g. Mumbai, India or San Francisco, CA"
                 className="w-full bg-[#182620] border border-[#2b4437] rounded-xl px-4 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788]"
               />
             </div>
 
             {/* Quick popular picks grouped by continent */}
             <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] uppercase tracking-wider text-[#748e80] font-semibold flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-[#52b788]" />
-                  Explore Worldwide Starting Points:
-                </span>
-              </div>
+              <span className="text-[11px] uppercase tracking-wider text-[#748e80] font-semibold flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-[#52b788]" />
+                Explore Worldwide Starting Points:
+              </span>
 
               {/* Continent Filter Chips */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                 {[
                   { id: 'all', label: 'All' },
                   { id: 'Asia', label: 'Asia' },
@@ -422,7 +523,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                     key={c.id}
                     type="button"
                     onClick={() => setQuickContinent(c.id)}
-                    className={`px-2.5 py-1 rounded-md transition-colors border ${
+                    className={`px-2.5 py-1 rounded-md transition-colors border whitespace-nowrap ${
                       quickContinent === c.id
                         ? 'bg-[#2e5d4b] border-[#52b788] text-white font-semibold'
                         : 'bg-[#14201a] border-[#263b2f] text-[#8fa79a] hover:text-white'
@@ -434,7 +535,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
               </div>
 
               {/* Destination buttons */}
-              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-[#101914] rounded-xl border border-[#203126]">
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1.5 bg-[#101914] rounded-xl border border-[#203126]">
                 {destinations
                   .filter(d => {
                     if (quickContinent === 'all') return true;
@@ -451,7 +552,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                         setDestination(`${d.name}, ${d.country}`);
                         setShowSuggestions(false);
                       }}
-                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors border ${
+                      className={`px-2.5 py-1 rounded-lg text-xs transition-colors border break-words ${
                         destination.includes(d.name)
                           ? 'bg-[#2e5d4b] border-[#52b788] text-white font-bold'
                           : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
@@ -466,11 +567,11 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         </div>
       )}
 
-      {/* STEP 2: Dates & Travelers */}
+      {/* STEP 2: Dates, Travelers & Pace */}
       {step === 2 && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">When and who is going?</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">When and who is going?</h3>
             <p className="text-xs text-[#8ca395]">Trip dates configure the daily activity schedules and seasonal climate intelligence.</p>
           </div>
 
@@ -503,19 +604,19 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
             <label className="block text-xs font-medium text-[#c0d1c7] mb-2 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-[#52b788]" /> Number of Travelers
             </label>
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[1, 2, 3, 4, 5, 6].map(num => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => setTravelers(num)}
-                  className={`flex-1 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                  className={`py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all text-center ${
                     travelers === num
                       ? 'bg-[#2e5d4b] border-[#52b788] text-white shadow-md'
                       : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
                   }`}
                 >
-                  {num} {num === 1 ? 'Solo' : 'Travelers'}
+                  {num} {num === 1 ? 'Solo' : 'Pax'}
                 </button>
               ))}
             </div>
@@ -523,7 +624,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
 
           <div>
             <label className="block text-xs font-medium text-[#c0d1c7] mb-2">Travel Pace</label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {(
                 [
                   { id: 'relaxed', label: 'Relaxed', desc: 'Slow mornings, 2 activities/day' },
@@ -535,14 +636,14 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                   key={style.id}
                   type="button"
                   onClick={() => setTravelStyle(style.id)}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-xl border text-left transition-all min-w-0 ${
                     travelStyle === style.id
                       ? 'bg-[#2e5d4b] border-[#52b788] text-white'
                       : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
                   }`}
                 >
                   <div className="text-xs font-semibold">{style.label}</div>
-                  <div className="text-[10px] text-[#9ab3a5] mt-1">{style.desc}</div>
+                  <div className="text-[10px] text-[#9ab3a5] mt-1 break-words">{style.desc}</div>
                 </button>
               ))}
             </div>
@@ -550,30 +651,36 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         </div>
       )}
 
-      {/* STEP 3: Budget & Currency */}
+      {/* STEP 3: Budget & Currency (Starts at 0 Compulsorily) */}
       {step === 3 && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">Target Budget & Currency</h3>
-            <p className="text-xs text-[#8ca395]">TripUp AI manages expense ceilings, category allotments, and alerts.</p>
+            <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">Target Budget & Currency</h3>
+            <p className="text-xs text-[#8ca395]">
+              Total estimated budget starts at 0 by default. Set any custom amount or start at 0 for flexible tracking.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-[#c0d1c7] mb-1.5 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-[#52b788]" /> Total Estimated Budget
+              <label className="block text-xs font-medium text-[#c0d1c7] mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-[#52b788]" /> Total Estimated Budget
+                </span>
+                <span className="text-[10px] text-[#52b788] font-semibold">Starts at 0 (Flexible)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-[#8ca395]">
-                  {CURRENCIES.find(c => c.code === currency)?.symbol || '$'}
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8ca395]">
+                  {activeCurrencyInfo.symbol}
                 </span>
                 <input
                   type="number"
-                  min="100"
+                  min="0"
                   step="50"
                   value={budgetAmount}
-                  onChange={e => setBudgetAmount(Number(e.target.value))}
-                  className="w-full bg-[#182620] border border-[#2b4437] rounded-xl pl-9 pr-4 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788]"
+                  onChange={e => setBudgetAmount(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0"
+                  className="w-full bg-[#182620] border border-[#2b4437] rounded-xl pl-9 pr-4 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788] font-mono"
                 />
               </div>
             </div>
@@ -585,7 +692,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                 onChange={e => setCurrency(e.target.value)}
                 className="w-full bg-[#182620] border border-[#2b4437] rounded-xl px-3 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788]"
               >
-                {CURRENCIES.map(c => (
+                {Object.values(SUPPORTED_CURRENCIES).map(c => (
                   <option key={c.code} value={c.code}>
                     {c.code} ({c.symbol}) — {c.name}
                   </option>
@@ -597,27 +704,25 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
           {/* Quick budget tier buttons */}
           <div>
             <span className="text-[11px] uppercase tracking-wider text-[#748e80] font-semibold block mb-2">
-              Preset Budget Scales:
+              Preset Budget Scales ({currency} {activeCurrencyInfo.symbol}):
             </span>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { amount: 1500, label: 'Value / Backpacker', desc: 'Hostels, public transit, street food' },
-                { amount: 3000, label: 'Comfort / Boutique', desc: 'Design hotels, curated dinners, express rail' },
-                { amount: 6500, label: 'Luxury / Signature', desc: '5-star suites, private guides, fine dining' },
-              ].map(tier => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+              {getPresetBudgets().map(tier => (
                 <button
                   key={tier.amount}
                   type="button"
                   onClick={() => setBudgetAmount(tier.amount)}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-xl border text-left transition-all min-w-0 ${
                     budgetAmount === tier.amount
                       ? 'bg-[#2e5d4b] border-[#52b788] text-white'
                       : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
                   }`}
                 >
-                  <div className="text-xs font-bold">{tier.label}</div>
-                  <div className="text-xs font-serif text-[#ffd166] mt-0.5">${tier.amount}</div>
-                  <div className="text-[10px] text-[#9ab3a5] mt-1">{tier.desc}</div>
+                  <div className="text-xs font-bold truncate">{tier.label}</div>
+                  <div className="text-xs font-serif text-[#ffd166] mt-0.5">
+                    {activeCurrencyInfo.symbol} {tier.amount.toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-[#9ab3a5] mt-1 break-words">{tier.desc}</div>
                 </button>
               ))}
             </div>
@@ -625,84 +730,137 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         </div>
       )}
 
-      {/* STEP 4: Interests */}
+      {/* STEP 4: Interests & Food Preferences */}
       {step === 4 && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">What are your passions & interests?</h3>
-            <p className="text-xs text-[#8ca395]">Select the experiences you wish to emphasize in your AI itinerary.</p>
+            <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">Passions & Food Preferences</h3>
+            <p className="text-xs text-[#8ca395]">
+              Tailor dining venues, pure veg requirements, and curated travel experiences.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {CATEGORIES.map(cat => {
-              const isSelected = selectedInterests.includes(cat.id);
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleInterestToggle(cat.id)}
-                  className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
-                    isSelected
-                      ? 'bg-[#224434] border-[#52b788] text-white shadow-sm'
-                      : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
-                  }`}
-                >
-                  <span className="text-2xl">{cat.icon}</span>
-                  <div>
-                    <div className="text-xs font-bold flex items-center gap-1.5">
-                      <span>{cat.label}</span>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#52b788]" />}
-                    </div>
-                    <div className="text-[11px] text-[#96aea1] mt-0.5">{cat.desc}</div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+          {/* FOOD PREFERENCE SECTION */}
+          <div className="p-4 bg-[#14201a] border border-[#284133] rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
+                <Utensils className="w-4 h-4 text-[#52b788]" /> Food & Dining Preference
+              </label>
+              <span className="text-[11px] text-[#52b788] font-medium">Strictly followed by AI</span>
+            </div>
 
-      {/* STEP 5: Transport & Accommodation */}
-      {step === 5 && (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">Transport & Accommodation Style</h3>
-            <p className="text-xs text-[#8ca395]">Set your mobility preferences and stay category.</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-[#c0d1c7] mb-2 flex items-center gap-1.5">
-              <Train className="w-3.5 h-3.5 text-[#52b788]" /> Transport Preferences
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { id: 'walking', label: 'Walking & Strolling' },
-                { id: 'public_transport', label: 'Metro & City Bus' },
-                { id: 'train', label: 'High-Speed Trains' },
-                { id: 'driving', label: 'Rental Car / Taxi' },
-              ].map(t => {
-                const isChecked = transportPrefs.includes(t.id);
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {DIETARY_OPTIONS.map(diet => {
+                const isSelected = dietaryPreference === diet.id;
                 return (
                   <button
-                    key={t.id}
+                    key={diet.id}
                     type="button"
-                    onClick={() => handleTransportToggle(t.id)}
-                    className={`p-3 rounded-xl border text-xs font-medium transition-all ${
-                      isChecked
-                        ? 'bg-[#2e5d4b] border-[#52b788] text-white'
-                        : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
+                    onClick={() => setDietaryPreference(diet.id)}
+                    className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all min-w-0 ${
+                      isSelected
+                        ? 'bg-[#214333] border-[#52b788] text-white shadow-md'
+                        : 'bg-[#182620] border-[#283d31] text-[#c0d1c7] hover:bg-[#1f3328]'
                     }`}
                   >
-                    {t.label}
+                    <span className="text-2xl shrink-0">{diet.icon}</span>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold flex items-center gap-1.5 flex-wrap">
+                        <span>{diet.label}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#13231a] text-[#52b788] border border-[#2b4437]">
+                          {diet.badge}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#52b788] shrink-0 ml-auto" />}
+                      </div>
+                      <p className="text-[10px] text-[#9bb5a6] mt-1 break-words">{diet.desc}</p>
+                    </div>
                   </button>
                 );
               })}
             </div>
           </div>
 
+          {/* TRAVEL INTERESTS */}
+          <div>
+            <label className="block text-xs font-medium text-[#c0d1c7] mb-2 flex items-center gap-1.5">
+              <Compass className="w-3.5 h-3.5 text-[#52b788]" /> Key Experiences & Interests
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {CATEGORIES.map(cat => {
+                const isSelected = selectedInterests.includes(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleInterestToggle(cat.id)}
+                    className={`p-3 rounded-xl border text-left flex items-start gap-3 transition-all min-w-0 ${
+                      isSelected
+                        ? 'bg-[#224434] border-[#52b788] text-white shadow-sm'
+                        : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
+                    }`}
+                  >
+                    <span className="text-2xl shrink-0">{cat.icon}</span>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold flex items-center gap-1.5">
+                        <span>{cat.label}</span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#52b788] shrink-0" />}
+                      </div>
+                      <div className="text-[10px] text-[#96aea1] mt-0.5 break-words">{cat.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 5: Transport (Private Car), Stay & Custom Prompt */}
+      {step === 5 && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">Transport, Stay & Custom Requests</h3>
+            <p className="text-xs text-[#8ca395]">
+              Choose transport options (including private car), accommodation, and enter custom trip instructions.
+            </p>
+          </div>
+
+          {/* TRANSPORT OPTIONS INCLUDING PRIVATE CAR */}
+          <div>
+            <label className="block text-xs font-medium text-[#c0d1c7] mb-2 flex items-center gap-1.5">
+              <Car className="w-3.5 h-3.5 text-[#52b788]" /> Transport Options (Select all that apply)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {TRANSPORT_CHOICES.map(t => {
+                const isChecked = transportPrefs.includes(t.id);
+                const IconComponent = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleTransportToggle(t.id)}
+                    className={`p-3 rounded-xl border text-left transition-all min-w-0 ${
+                      isChecked
+                        ? 'bg-[#2e5d4b] border-[#52b788] text-white shadow-sm'
+                        : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <IconComponent className="w-4 h-4 text-[#52b788] shrink-0" />
+                      <span className="text-xs font-semibold truncate">{t.label}</span>
+                      {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-white ml-auto shrink-0" />}
+                    </div>
+                    <p className="text-[10px] text-[#9ab3a5] break-words">{t.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ACCOMMODATION STYLE */}
           <div>
             <label className="block text-xs font-medium text-[#c0d1c7] mb-2">Preferred Stay Category</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {[
                 { title: 'Boutique Hotel / Machiya', desc: 'Character-rich, authentic localized hospitality' },
                 { title: 'Eco-Resort & Spa', desc: 'Holistic wellness, nature immersion, tranquil pools' },
@@ -712,16 +870,58 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                   key={stay.title}
                   type="button"
                   onClick={() => setAccommodationPref(stay.title)}
-                  className={`p-3.5 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-xl border text-left transition-all min-w-0 ${
                     accommodationPref === stay.title
                       ? 'bg-[#2e5d4b] border-[#52b788] text-white'
                       : 'bg-[#182620] border-[#2b4437] text-[#c0d1c7] hover:bg-[#20342b]'
                   }`}
                 >
-                  <div className="text-xs font-bold">{stay.title}</div>
-                  <div className="text-[10px] text-[#9ab3a5] mt-1">{stay.desc}</div>
+                  <div className="text-xs font-bold truncate">{stay.title}</div>
+                  <div className="text-[10px] text-[#9ab3a5] mt-1 break-words">{stay.desc}</div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* CUSTOM PROMPT & SPECIAL INSTRUCTIONS */}
+          <div className="p-4 bg-[#14201a] border border-[#2a4535] rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-1.5 uppercase tracking-wider">
+                <MessageSquare className="w-4 h-4 text-[#52b788]" /> Custom Trip Instructions & Prompts
+              </label>
+              <span className="text-[10px] text-[#8ea597]">Optional & completely customizable</span>
+            </div>
+
+            <textarea
+              value={customPrompt}
+              onChange={e => setCustomPrompt(e.target.value)}
+              rows={3}
+              placeholder='e.g. "I need a halt between source and destination for a day and explore nearby area", "Prefer scenic road trip drives with private car", "Ensure pure vegetarian food stalls only"'
+              className="w-full bg-[#182620] border border-[#2b4437] rounded-xl p-3 text-xs text-[#f4efe6] focus:outline-none focus:border-[#52b788] leading-relaxed resize-none"
+            />
+
+            <div>
+              <span className="text-[11px] text-[#789686] font-medium block mb-1.5">
+                Quick sample prompts (tap to apply):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PROMPT_SUGGESTIONS.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      if (!customPrompt.trim()) {
+                        setCustomPrompt(suggestion);
+                      } else if (!customPrompt.includes(suggestion)) {
+                        setCustomPrompt(`${customPrompt.trim()}; ${suggestion}`);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#192b22] hover:bg-[#233c2f] border border-[#2b4437] text-[11px] text-[#b0c7ba] hover:text-white transition-colors text-left break-words"
+                  >
+                    + {suggestion}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -731,35 +931,54 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
       {step === 6 && (
         <div className="space-y-6">
           <div>
-            <h3 className="text-lg font-semibold text-[#f4efe6] mb-1">Review Your Travel Parameters</h3>
-            <p className="text-xs text-[#8ca395]">Review your inputs before generating with Google Gemini AI.</p>
+            <h3 className="text-base sm:text-lg font-semibold text-[#f4efe6] mb-1">Review Your Travel Parameters</h3>
+            <p className="text-xs text-[#8ca395]">
+              Verify your inputs, food preferences, and custom instructions before generating with Gemini AI.
+            </p>
           </div>
 
-          <div className="bg-[#182620] border border-[#2b4437] rounded-xl p-5 space-y-3.5 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-[#24372e]">
+          <div className="bg-[#182620] border border-[#2b4437] rounded-xl p-4 sm:p-5 space-y-3 text-xs">
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center py-1.5 border-b border-[#24372e] gap-1">
               <span className="text-[#8ca395]">Destination & Origin:</span>
               <span className="font-semibold text-[#f4efe6]">{destination} (from {origin})</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-[#24372e]">
-              <span className="text-[#8ca395]">Travel Dates:</span>
-              <span className="font-semibold text-[#f4efe6]">{startDate} to {endDate}</span>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center py-1.5 border-b border-[#24372e] gap-1">
+              <span className="text-[#8ca395]">Travel Dates & Pace:</span>
+              <span className="font-semibold text-[#f4efe6]">{startDate} to {endDate} · {travelers} traveler(s) ({travelStyle})</span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-[#24372e]">
-              <span className="text-[#8ca395]">Travelers & Pace:</span>
-              <span className="font-semibold text-[#f4efe6]">{travelers} traveler(s) · {travelStyle}</span>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center py-1.5 border-b border-[#24372e] gap-1">
+              <span className="text-[#8ca395]">Total Estimated Budget:</span>
+              <span className="font-semibold text-[#52b788]">
+                {currency} {activeCurrencyInfo.symbol} {budgetAmount.toLocaleString()}
+                {budgetAmount === 0 && ' (Flexible / Start at 0)'}
+              </span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-[#24372e]">
-              <span className="text-[#8ca395]">Budget:</span>
-              <span className="font-semibold text-[#52b788]">{currency} {budgetAmount.toLocaleString()}</span>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center py-1.5 border-b border-[#24372e] gap-1">
+              <span className="text-[#8ca395]">Food Preference:</span>
+              <span className="font-semibold text-[#52b788] capitalize flex items-center gap-1.5">
+                <span>{DIETARY_OPTIONS.find(d => d.id === dietaryPreference)?.icon}</span>
+                <span>{DIETARY_OPTIONS.find(d => d.id === dietaryPreference)?.label}</span>
+              </span>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-[#24372e]">
-              <span className="text-[#8ca395]">Primary Interests:</span>
-              <span className="font-semibold text-[#f4efe6]">{selectedInterests.join(', ')}</span>
+
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center py-1.5 border-b border-[#24372e] gap-1">
+              <span className="text-[#8ca395]">Transport & Stay:</span>
+              <span className="font-semibold text-[#f4efe6] break-words">
+                {transportPrefs.map(t => TRANSPORT_CHOICES.find(c => c.id === t)?.label || t).join(', ')} · {accommodationPref}
+              </span>
             </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-[#8ca395]">Stay & Transit:</span>
-              <span className="font-semibold text-[#f4efe6]">{accommodationPref} · {transportPrefs.join(', ')}</span>
-            </div>
+
+            {customPrompt && (
+              <div className="py-1.5 border-t border-[#24372e]">
+                <span className="text-[#8ca395] block mb-1">Custom Request / Halt Instruction:</span>
+                <p className="text-[#ffd166] italic bg-[#131f18] p-2.5 rounded-lg border border-[#273d30] break-words">
+                  "{customPrompt}"
+                </p>
+              </div>
+            )}
           </div>
 
           {isGenerating ? (
@@ -767,40 +986,40 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
               <Loader2 className="w-8 h-8 text-[#52b788] animate-spin" />
               <div className="text-sm font-semibold text-[#f4efe6]">{generationStepText}</div>
               <p className="text-xs text-[#8ca395] max-w-md">
-                Analyzing verified coordinates, matching opening hours, calculating route transit, and allocating estimated budget.
+                Analyzing verified coordinates, food preferences ({dietaryPreference}), transport modes, and allocating budget.
               </p>
             </div>
           ) : (
             <div className="p-4 bg-[#1e3427] border border-[#52b788]/40 rounded-xl flex items-center gap-3">
               <Sparkles className="w-5 h-5 text-[#52b788] shrink-0" />
               <p className="text-xs text-[#d8e8de]">
-                Ready to architect your personalized itinerary. Activities will be placed chronologically without time overlaps.
+                Ready to architect your personalized itinerary honoring your dietary choices, custom prompts, and private car preferences.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Navigation Footer */}
-      <div className="mt-8 pt-5 border-t border-[#23352b] flex items-center justify-between">
+      {/* Navigation Footer (No overlapping buttons) */}
+      <div className="mt-8 pt-5 border-t border-[#23352b] flex flex-wrap items-center justify-between gap-3">
         {step > 1 ? (
           <button
             type="button"
             onClick={handleBack}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#2b4437] text-xs font-medium text-[#c0d1c7] hover:bg-[#1a2b22] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#2b4437] text-xs font-medium text-[#c0d1c7] hover:bg-[#1a2b22] transition-colors disabled:opacity-50 shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back
           </button>
         ) : (
-          <div />
+          <div className="shrink-0" />
         )}
 
         {step < 6 ? (
           <button
             type="button"
             onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#2e5d4b] hover:bg-[#3a735e] text-xs font-semibold text-white shadow-lg transition-all"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#2e5d4b] hover:bg-[#3a735e] text-xs font-semibold text-white shadow-lg transition-all ml-auto shrink-0"
           >
             Continue <ArrowRight className="w-3.5 h-3.5" />
           </button>
@@ -809,15 +1028,15 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-7 py-3 rounded-xl bg-[#52b788] hover:bg-[#40916c] text-xs font-bold text-[#0c120f] shadow-lg transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-6 sm:px-7 py-3 rounded-xl bg-[#52b788] hover:bg-[#40916c] text-xs font-bold text-[#0c120f] shadow-lg transition-all disabled:opacity-50 ml-auto shrink-0"
           >
             {isGenerating ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Generating...
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" /> <span>Generating...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" /> Architect AI Itinerary
+                <Sparkles className="w-4 h-4 shrink-0" /> <span>Architect AI Itinerary</span>
               </>
             )}
           </button>

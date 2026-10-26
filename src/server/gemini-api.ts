@@ -41,15 +41,20 @@ Trip details:
 - Key Interests: ${input.interests.join(', ')}
 - Transport Preferences: ${input.transportPreferences.join(', ')}
 - Accommodation Type: ${input.accommodationPreferences}
+- Food & Dining Preference: ${input.dietaryPreference || 'Veg & Non-Veg (Mixed)'}
+- User Custom Instructions / Prompts: ${input.customPrompt || 'None'}
 
 Requirements:
 1. Provide a trip title and concise summary.
 2. Generate an itinerary day for each day between ${input.startDate} and ${input.endDate}.
-3. For each day, include 3 to 4 sequential, non-overlapping activities (Morning, Afternoon, Evening/Dinner).
-4. Each activity MUST have:
+3. USER CUSTOM PROMPT COMPLIANCE: If the user provided custom instructions (such as "${input.customPrompt}"), you MUST STRICTLY HONOR THEM. If they asked for a midway halt between source and destination for a day to explore nearby areas, dedicate an itinerary day to this stopover.
+4. FOOD PREFERENCE COMPLIANCE: If Food Preference is "pure_veg", ALL dining recommendations MUST be 100% vegetarian / Jain friendly (strictly no meat, fish, or poultry). If "only_nonveg", emphasize authentic local meat, poultry, and seafood specialties. If "veg_nonveg", provide diverse culinary choices.
+5. PRIVATE CAR / TRANSIT: If "private_car" or "rental car" is selected, detail scenic driving stops, roadside viewpoints, and convenient parking.
+6. For each day, include 3 to 4 sequential, non-overlapping activities (Morning, Afternoon, Evening/Dinner).
+7. Each activity MUST have:
    - id: unique string
    - title: clear, evocative landmark or experience title
-   - description: 1-2 sentence rich context and insider tip
+   - description: 1-2 sentence rich context, insider tip, and transit notes
    - address: realistic location or neighborhood
    - startTime: "HH:mm" (24-hour format, e.g. "09:00")
    - endTime: "HH:mm" (24-hour format, e.g. "11:30")

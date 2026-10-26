@@ -110,3 +110,100 @@ export function hasPermission(role: TripMemberRole, action: 'view' | 'edit' | 'd
   }
   return false;
 }
+
+/**
+ * Currency Exchange Rates and Conversion
+ * Base: 1 USD
+ */
+export interface CurrencyInfo {
+  code: string;
+  symbol: string;
+  name: string;
+  rateFromUSD: number; // How many units of this currency equal 1 USD
+}
+
+export const SUPPORTED_CURRENCIES: Record<string, CurrencyInfo> = {
+  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rateFromUSD: 86.5 },
+  USD: { code: 'USD', symbol: '$', name: 'US Dollar', rateFromUSD: 1.0 },
+  EUR: { code: 'EUR', symbol: '€', name: 'Euro', rateFromUSD: 0.92 },
+  GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rateFromUSD: 0.79 },
+  JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rateFromUSD: 154.0 },
+  CAD: { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar', rateFromUSD: 1.38 },
+  AUD: { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rateFromUSD: 1.52 },
+  CHF: { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc', rateFromUSD: 0.88 },
+};
+
+/**
+ * Convert an amount from one currency to another
+ */
+export function convertCurrency(amount: number, fromCurrency: string = 'USD', toCurrency: string = 'INR'): number {
+  if (!amount || amount === 0) return 0;
+  if (fromCurrency === toCurrency) return amount;
+
+  const fromRate = SUPPORTED_CURRENCIES[fromCurrency]?.rateFromUSD || 1.0;
+  const toRate = SUPPORTED_CURRENCIES[toCurrency]?.rateFromUSD || 1.0;
+
+  // Convert to USD base first, then to target
+  const inUSD = amount / fromRate;
+  const inTarget = inUSD * toRate;
+
+  // For high-magnitude currencies like INR or JPY, round to integer. Otherwise round to 2 decimals.
+  if (toCurrency === 'INR' || toCurrency === 'JPY') {
+    return Math.round(inTarget);
+  }
+  return Math.round(inTarget * 100) / 100;
+}
+
+/**
+ * Format an amount with currency symbol and localized number grouping
+ */
+export function formatCurrency(amount: number, currencyCode: string = 'INR'): string {
+  const info = SUPPORTED_CURRENCIES[currencyCode] || { symbol: currencyCode, rateFromUSD: 1 };
+  const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+
+  // Format with commas according to locale if possible
+  const formattedNumber = safeAmount.toLocaleString(
+    currencyCode === 'INR' ? 'en-IN' : 'en-US',
+    {
+      maximumFractionDigits: currencyCode === 'INR' || currencyCode === 'JPY' ? 0 : 2,
+      minimumFractionDigits: 0,
+    }
+  );
+
+  return `${info.symbol}${formattedNumber}`;
+}
+
+/**
+ * Converts all monetary amounts in a Trip from one currency to another
+ */
+export function convertTripCurrency(trip: Trip, targetCurrency: string): Trip {
+  if (trip.currency === targetCurrency) return trip;
+  const sourceCurrency = trip.currency || 'USD';
+
+  const newBudgetAmount = convertCurrency(trip.budgetAmount, sourceCurrency, targetCurrency);
+
+  const newExpenses = trip.expenses.map(exp => ({
+    ...exp,
+    currency: targetCurrency,
+    estimatedAmount: convertCurrency(exp.estimatedAmount, exp.currency || sourceCurrency, targetCurrency),
+    actualAmount: convertCurrency(exp.actualAmount, exp.currency || sourceCurrency, targetCurrency),
+  }));
+
+  const newItinerary = trip.itinerary.map(day => ({
+    ...day,
+    activities: day.activities.map(act => ({
+      ...act,
+      currency: targetCurrency,
+      estimatedCost: convertCurrency(act.estimatedCost, act.currency || sourceCurrency, targetCurrency),
+    })),
+  }));
+
+  return {
+    ...trip,
+    currency: targetCurrency,
+    budgetAmount: newBudgetAmount,
+    expenses: newExpenses,
+    itinerary: newItinerary,
+    updatedAt: new Date().toISOString(),
+  };
+}

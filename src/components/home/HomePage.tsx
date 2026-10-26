@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTravel } from '../../context/TravelContext';
+import { convertCurrency, formatCurrency } from '../../lib/trip-logic';
 import {
   Sparkles,
   MapPin,
@@ -28,7 +29,7 @@ interface QuickCity {
   country: string;
   continent: string;
   badge: string;
-  budget: string;
+  baseDailyUSD: number;
   weather: string;
   image: string;
   desc: string;
@@ -41,7 +42,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Japan',
     continent: 'Asia',
     badge: '🌸 Zen Temples',
-    budget: '$140/day',
+    baseDailyUSD: 140,
     weather: '19°C · Crisp',
     image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=800',
     desc: 'Ancient imperial shrines, bamboo groves, and traditional tea ceremonies.',
@@ -52,7 +53,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'France',
     continent: 'Europe',
     badge: '🗼 Art & Cafes',
-    budget: '€210/day',
+    baseDailyUSD: 220,
     weather: '17°C · Mild',
     image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?q=80&w=800',
     desc: 'The City of Light, world-class museums, Seine river cruises, and bistros.',
@@ -63,7 +64,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Italy',
     continent: 'Europe',
     badge: '🏛️ Colosseum',
-    budget: '€180/day',
+    baseDailyUSD: 195,
     weather: '22°C · Sunny',
     image: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=800',
     desc: 'Gladiatorial ruins, Vatican treasures, vibrant piazzas, and authentic pasta.',
@@ -74,7 +75,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Switzerland',
     continent: 'Europe',
     badge: '🏔️ Matterhorn Peak',
-    budget: 'CHF 260/day',
+    baseDailyUSD: 290,
     weather: '11°C · Sunny',
     image: 'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?q=80&w=800',
     desc: 'Car-free alpine villages, crystalline glacier lakes, and scenic cogwheel trains.',
@@ -85,7 +86,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Japan',
     continent: 'Asia',
     badge: '⚡ Neon & Sushi',
-    budget: '$175/day',
+    baseDailyUSD: 175,
     weather: '20°C · Clear',
     image: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=800',
     desc: 'Futuristic hyper-city where neon skyscrapers meet tranquil Shinto shrines.',
@@ -96,7 +97,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Indonesia',
     continent: 'Asia',
     badge: '🏝️ Tropical Retreat',
-    budget: '$75/day',
+    baseDailyUSD: 75,
     weather: '28°C · Tropical',
     image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?q=80&w=800',
     desc: 'Emerald terraced rice paddies, cliffside sea temples, and holistic spas.',
@@ -107,7 +108,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'United States',
     continent: 'Americas',
     badge: '🗽 Broadway & Met',
-    budget: '$240/day',
+    baseDailyUSD: 240,
     weather: '16°C · Clear',
     image: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=80&w=800',
     desc: 'Central Park walks, world-class theaters, and boundless culinary energy.',
@@ -118,7 +119,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Peru',
     continent: 'Americas',
     badge: '🦙 Inca Citadel',
-    budget: '$90/day',
+    baseDailyUSD: 90,
     weather: '17°C · Crisp',
     image: 'https://images.unsplash.com/photo-1526392060635-9d6019884377?q=80&w=800',
     desc: 'Inca cloud-forest sanctuary perched among dramatic Andean mountain summits.',
@@ -129,7 +130,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Egypt',
     continent: 'Africa',
     badge: '🏺 Great Pyramids',
-    budget: '$95/day',
+    baseDailyUSD: 95,
     weather: '26°C · Desert Sun',
     image: 'https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?q=80&w=800',
     desc: 'The Great Pyramids, enigmatic Sphinx, and bustling historic bazaars.',
@@ -140,7 +141,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Tanzania',
     continent: 'Africa',
     badge: '🦁 Big 5 Safari',
-    budget: '$240/day',
+    baseDailyUSD: 240,
     weather: '27°C · Golden Sun',
     image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?q=80&w=800',
     desc: 'The Great Wildebeest Migration across golden savannahs and Ngorongoro Crater.',
@@ -151,7 +152,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Australia',
     continent: 'Oceania',
     badge: '🦘 Opera House',
-    budget: 'A$ 170/day',
+    baseDailyUSD: 170,
     weather: '23°C · Harbour Sun',
     image: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=800',
     desc: 'Iconic harbour sails, Bondi surf waves, and Blue Mountains eucalyptus trails.',
@@ -162,7 +163,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'New Zealand',
     continent: 'Oceania',
     badge: '🎿 Fiords & Peaks',
-    budget: 'NZ$ 180/day',
+    baseDailyUSD: 180,
     weather: '17°C · Pure Air',
     image: 'https://images.unsplash.com/photo-1507699622108-4be3abd695ad?q=80&w=800',
     desc: 'Milford Sound glacier fiords, Lake Wakatipu steamers, and alpine thrills.',
@@ -173,7 +174,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'UAE',
     continent: 'Middle East',
     badge: '🏙️ Burj Khalifa',
-    budget: 'AED 210/day',
+    baseDailyUSD: 210,
     weather: '27°C · Desert Sky',
     image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800',
     desc: 'Futuristic Burj Khalifa skyscraper, desert sand dune safaris, and luxury.',
@@ -184,7 +185,7 @@ const FEATURED_CITIES: QuickCity[] = [
     country: 'Jordan',
     continent: 'Middle East',
     badge: '🏜️ Rose City',
-    budget: 'JOD 125/day',
+    baseDailyUSD: 125,
     weather: '23°C · Clear Sky',
     image: 'https://images.unsplash.com/photo-1579606032834-d40770075591?q=80&w=800',
     desc: 'Rose-red sandstone Treasury carved into canyons and Wadi Rum desert.',
@@ -192,7 +193,7 @@ const FEATURED_CITIES: QuickCity[] = [
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({ onStartPlanningWith, onNavigateTo }) => {
-  const { destinations, savedDestinationIds, toggleFavoriteDestination } = useTravel();
+  const { destinations, savedDestinationIds, toggleFavoriteDestination, currentCurrency } = useTravel();
 
   // Quick Trip Search Form State
   const [quickDest, setQuickDest] = useState('Kyoto, Japan');
@@ -367,7 +368,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartPlanningWith, onNavig
                 </div>
                 <div className="text-[10px] text-[#52b788] font-semibold truncate">{city.badge}</div>
                 <div className="text-[10px] text-[#8aa395] flex items-center justify-between">
-                  <span>{city.budget}</span>
+                  <span>{formatCurrency(convertCurrency(city.baseDailyUSD, 'USD', currentCurrency), currentCurrency)}/day</span>
                   <ArrowRight className="w-3 h-3 text-[#52b788] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </button>
@@ -451,7 +452,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onStartPlanningWith, onNavig
                         Estimated Budget
                       </span>
                       <span className="text-xs font-bold text-[#ffd166]">
-                        {dest.currency} {dest.avgDailyBudget}/day
+                        {formatCurrency(convertCurrency(dest.avgDailyBudget, (dest.currency as any) || 'USD', currentCurrency), currentCurrency)}/day
                       </span>
                     </div>
 

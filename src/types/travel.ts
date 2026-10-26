@@ -92,6 +92,19 @@ export const TripMemberSchema = z.object({
 
 export type TripMember = z.infer<typeof TripMemberSchema>;
 
+// Dietary Options
+export const DietaryPreferenceSchema = z.enum([
+  'pure_veg',      // Pure Veg (Strict Vegetarian / Jain friendly)
+  'veg_nonveg',    // Veg & Non-Veg (Mixed / Flexible)
+  'only_nonveg',   // Only Non-Veg (Poultry, Meat & Seafood specialty)
+  'vegan',         // Vegan (Plant-based)
+  'halal',         // Halal certified
+  'kosher',        // Kosher
+  'gluten_free',   // Gluten-Free / Celiac
+]);
+
+export type DietaryPreference = z.infer<typeof DietaryPreferenceSchema>;
+
 // Trip Model Schema
 export const TripSchema = z.object({
   id: z.string(),
@@ -103,12 +116,14 @@ export const TripSchema = z.object({
   startDate: z.string(), // YYYY-MM-DD
   endDate: z.string(),   // YYYY-MM-DD
   travelers: z.number().int().min(1, 'At least 1 traveler required'),
-  budgetAmount: z.number().positive('Budget must be greater than 0'),
+  budgetAmount: z.number().nonnegative('Budget cannot be negative').default(0),
   currency: z.string().default('USD'),
   travelStyle: z.enum(['relaxed', 'balanced', 'packed']).default('balanced'),
   interests: z.array(TravelCategorySchema).min(1, 'Select at least 1 interest'),
-  transportPreferences: z.array(z.string()).default(['walking', 'public_transport']),
+  transportPreferences: z.array(z.string()).default(['private_car', 'walking']),
   accommodationPreferences: z.string().default('boutique'),
+  dietaryPreference: DietaryPreferenceSchema.default('veg_nonveg'),
+  customPrompt: z.string().optional(),
   status: z.enum(['draft', 'upcoming', 'ongoing', 'completed', 'archived']).default('upcoming'),
   coverImageUrl: z.string().optional(),
   itinerary: z.array(ItineraryDaySchema).default([]),
@@ -130,7 +145,7 @@ export interface UserProfile {
   timezone: string;
   homeAirport?: string;
   preferences: {
-    dietary?: string[];
+    dietary?: DietaryPreference | string[];
     mobilityNeeds?: boolean;
     travelStyle: 'relaxed' | 'balanced' | 'packed';
   };

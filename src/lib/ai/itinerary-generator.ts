@@ -13,6 +13,8 @@ export interface GenerationInput {
   travelStyle: 'relaxed' | 'balanced' | 'packed';
   transportPreferences: string[];
   accommodationPreferences: string;
+  dietaryPreference?: string;
+  customPrompt?: string;
 }
 
 export interface GenerationResult {
@@ -29,6 +31,14 @@ export interface GenerationResult {
 export function generateSmartItinerary(input: GenerationInput): GenerationResult {
   const durationDays = Math.min(calculateTripDurationDays(input.startDate, input.endDate), 14);
   const start = new Date(input.startDate);
+  const hasPrivateCar = input.transportPreferences.some(t => t.includes('private_car') || t.includes('car'));
+  const isPureVeg = input.dietaryPreference === 'pure_veg';
+  const isOnlyNonVeg = input.dietaryPreference === 'only_nonveg';
+  const hasCustomHalt = input.customPrompt && (
+    input.customPrompt.toLowerCase().includes('halt') ||
+    input.customPrompt.toLowerCase().includes('stopover') ||
+    input.customPrompt.toLowerCase().includes('between source')
+  );
 
   const destLower = input.destination.toLowerCase();
   const isKyoto = destLower.includes('kyoto') || destLower.includes('japan') || destLower.includes('tokyo');
@@ -49,26 +59,43 @@ export function generateSmartItinerary(input: GenerationInput): GenerationResult
     const dayNumber = i + 1;
 
     if (dayNumber === 1) {
-      // Arrival & Orientation Day
-      activities.push({
-        id: `act-${dayNumber}-1`,
-        title: `Arrival in ${input.destination} & Check-in`,
-        description: `Arrive via ${input.transportPreferences[0] || 'flight'}, transfer to your ${input.accommodationPreferences} stay, unpack and freshen up.`,
-        startTime: '13:00',
-        endTime: '15:00',
-        durationMinutes: 120,
-        estimatedCost: Math.round(input.budgetAmount * 0.05),
-        currency: input.currency,
-        category: 'relaxation',
-        sortOrder: 0,
-        verificationStatus: 'verified',
-        address: `${input.destination} Central Station / Hub`,
-      });
+      // Arrival & Orientation Day (or Midway Halt if requested in customPrompt)
+      if (hasCustomHalt) {
+        activities.push({
+          id: `act-${dayNumber}-1`,
+          title: `Midway Scenic Halt & Regional Exploration`,
+          description: `Depart ${input.origin} via ${hasPrivateCar ? 'private car' : 'scenic drive'}, halting midway for a day to tour historic country towns and scenic viewpoints before heading to ${input.destination}.`,
+          startTime: '10:00',
+          endTime: '14:30',
+          durationMinutes: 270,
+          estimatedCost: Math.round(input.budgetAmount * 0.04),
+          currency: input.currency,
+          category: 'adventure',
+          sortOrder: 0,
+          verificationStatus: 'verified',
+          address: `Scenic Waypoint En Route to ${input.destination}`,
+        });
+      } else {
+        activities.push({
+          id: `act-${dayNumber}-1`,
+          title: `Arrival in ${input.destination} & Check-in`,
+          description: `Arrive via ${hasPrivateCar ? 'private car / chauffeur' : input.transportPreferences[0] || 'transit'}, transfer to your ${input.accommodationPreferences} stay, unpack and freshen up.`,
+          startTime: '13:00',
+          endTime: '15:00',
+          durationMinutes: 120,
+          estimatedCost: Math.round(input.budgetAmount * 0.05),
+          currency: input.currency,
+          category: 'relaxation',
+          sortOrder: 0,
+          verificationStatus: 'verified',
+          address: `${input.destination} Central Station / Hub`,
+        });
+      }
 
       activities.push({
         id: `act-${dayNumber}-2`,
         title: `Neighborhood Stroll & Orientation`,
-        description: `Gentle walk through the historic old quarter, scouting local bakeries, craft shops, and scenic viewpoints.`,
+        description: `Gentle walk through the historic quarter${hasPrivateCar ? ' with private car drop-off' : ''}, scouting local artisan shops and viewpoints.`,
         startTime: '15:30',
         endTime: '18:00',
         durationMinutes: 150,
@@ -79,14 +106,26 @@ export function generateSmartItinerary(input: GenerationInput): GenerationResult
         verificationStatus: 'verified',
       });
 
+      const dinnerTitle = isPureVeg
+        ? 'Pure Vegetarian & Jain-Friendly Welcome Dinner'
+        : isOnlyNonVeg
+        ? 'Authentic Regional Non-Veg & Seafood Feast'
+        : 'Welcome Dinner with Curated Veg & Non-Veg Flavors';
+
+      const dinnerDesc = isPureVeg
+        ? 'Delight in 100% pure vegetarian culinary art, fresh farm organic produce, and regional specialties.'
+        : isOnlyNonVeg
+        ? 'Indulge in premium regional cuts, traditional meat dishes, and coastal seafood specialties.'
+        : 'Savor authentic regional flavors paired with local wines or artisanal teas at a hand-picked bistro.';
+
       activities.push({
         id: `act-${dayNumber}-3`,
-        title: `Welcome Dinner with Local Specialties`,
-        description: `Savor authentic regional flavors paired with local wines or artisanal teas at a hand-picked bistro.`,
+        title: dinnerTitle,
+        description: dinnerDesc,
         startTime: '19:00',
         endTime: '21:00',
         durationMinutes: 120,
-        estimatedCost: Math.round(input.budgetAmount * 0.07 / durationDays),
+        estimatedCost: Math.round(input.budgetAmount > 0 ? (input.budgetAmount * 0.07 / durationDays) : 35),
         currency: input.currency,
         category: 'food',
         sortOrder: 2,

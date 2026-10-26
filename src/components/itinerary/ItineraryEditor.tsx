@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Trip, Activity, Expense, TravelCategory, ExpenseCategory } from '../../types/travel';
 import { useTravel } from '../../context/TravelContext';
-import { calculateBudgetSummary, validateDaySchedule, doActivitiesOverlap } from '../../lib/trip-logic';
+import {
+  calculateBudgetSummary,
+  validateDaySchedule,
+  doActivitiesOverlap,
+  formatCurrency,
+  SUPPORTED_CURRENCIES,
+} from '../../lib/trip-logic';
 import { GroundingPanel } from '../grounding/GroundingPanel';
 import {
   Calendar,
@@ -45,6 +51,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
     addActivity,
     deleteActivity,
     reorderActivities,
+    changeTripCurrency,
   } = useTravel();
 
   const trip = trips.find(t => t.id === tripId) || trips[0];
@@ -225,6 +232,23 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                 <Calendar className="w-3.5 h-3.5 text-[#52b788]" />
                 {trip.startDate} to {trip.endDate} ({trip.itinerary.length} Days)
               </span>
+              {trip.dietaryPreference && (
+                <span className="px-2.5 py-0.5 rounded-full bg-[#1b3829] border border-[#52b788]/60 text-[#96e6ba] font-semibold flex items-center gap-1">
+                  <span>🥦</span>
+                  <span>
+                    {trip.dietaryPreference === 'pure_veg' ? 'Pure Veg' :
+                     trip.dietaryPreference === 'only_nonveg' ? 'Only Non-Veg' :
+                     trip.dietaryPreference === 'vegan' ? 'Vegan' :
+                     trip.dietaryPreference === 'halal' ? 'Halal' : 'Veg & Non-Veg'}
+                  </span>
+                </span>
+              )}
+              {trip.customPrompt && (
+                <span className="px-2.5 py-0.5 rounded-full bg-[#292617] border border-[#ffd166]/60 text-[#ffe599] font-medium flex items-center gap-1 truncate max-w-xs">
+                  <span>✨</span>
+                  <span className="truncate">{trip.customPrompt}</span>
+                </span>
+              )}
             </div>
             <h1 className="text-xl md:text-3xl font-bold font-serif text-white tracking-tight">{trip.title}</h1>
           </div>
@@ -236,7 +260,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
             [
               { id: 'itinerary', label: 'Daily Timeline & Schedule' },
               { id: 'grounding', label: 'Google Maps & Search Grounding' },
-              { id: 'budget', label: `Budget & Expenses (${trip.currency} ${budgetSummary.recordedActualTotal.toLocaleString()})` },
+              { id: 'budget', label: `Budget & Expenses (${formatCurrency(budgetSummary.recordedActualTotal, trip.currency)})` },
               { id: 'map', label: 'Route & Map Stops' },
               { id: 'weather', label: 'Weather Forecast' },
               { id: 'share', label: `Companions (${trip.members.length})` },
@@ -369,7 +393,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                         {/* Cost & Reorder / Actions */}
                         <div className="flex md:flex-col items-center md:items-end justify-between gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-[#23352b]">
                           <div className="text-xs font-semibold text-[#ffd166]">
-                            {act.estimatedCost > 0 ? `${act.currency} ${act.estimatedCost}` : 'Free / Included'}
+                            {act.estimatedCost > 0 ? formatCurrency(act.estimatedCost, trip.currency) : 'Free / Included'}
                           </div>
 
                           <div className="flex items-center gap-1 opacity-90 group-hover:opacity-100 transition-opacity">
@@ -414,18 +438,46 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
       {/* TAB 2: BUDGET & EXPENSES */}
       {activeTab === 'budget' && (
         <div className="space-y-6">
+          {/* Trip Currency Switcher Bar */}
+          <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-md">
+            <div>
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-[#52b788]" />
+                <span>Trip Currency & Exchange Unit</span>
+              </span>
+              <span className="text-[11px] text-[#8ca395]">
+                Switch currency to automatically convert your trip budget and itemized expenses in real-time.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#a3b9ac] font-medium">Trip Currency:</span>
+              <select
+                value={trip.currency}
+                onChange={e => changeTripCurrency(trip.id, e.target.value)}
+                className="bg-[#1b2b22] hover:bg-[#22362b] border border-[#52b788] text-white font-bold text-xs px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer transition-colors"
+                aria-label="Trip Currency"
+              >
+                {Object.values(SUPPORTED_CURRENCIES).map(curr => (
+                  <option key={curr.code} value={curr.code}>
+                    {curr.symbol} {curr.code} — {curr.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Summary Row */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl">
               <span className="text-[11px] uppercase tracking-wider text-[#799486] font-semibold">Allocated Budget</span>
               <div className="text-xl font-bold font-serif text-white mt-1">
-                {trip.currency} {budgetSummary.budgetAmount.toLocaleString()}
+                {formatCurrency(budgetSummary.budgetAmount, trip.currency)}
               </div>
             </div>
             <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl">
               <span className="text-[11px] uppercase tracking-wider text-[#799486] font-semibold">Actual Spending</span>
               <div className="text-xl font-bold font-serif text-[#ffd166] mt-1">
-                {trip.currency} {budgetSummary.recordedActualTotal.toLocaleString()}
+                {formatCurrency(budgetSummary.recordedActualTotal, trip.currency)}
               </div>
             </div>
             <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl">
@@ -435,7 +487,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                   budgetSummary.isOverBudget ? 'text-[#ff7b72]' : 'text-[#52b788]'
                 }`}
               >
-                {trip.currency} {budgetSummary.remainingBudget.toLocaleString()}
+                {formatCurrency(budgetSummary.remainingBudget, trip.currency)}
               </div>
             </div>
             <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl">
@@ -489,12 +541,12 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                         </span>
                       </div>
                       <div className="text-[11px] text-[#789184] mt-0.5">
-                        Recorded on {exp.expenseDate} · Est: {exp.currency} {exp.estimatedAmount}
+                        Recorded on {exp.expenseDate} · Est: {formatCurrency(exp.estimatedAmount, trip.currency)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-sm font-bold text-[#ffd166]">
-                        {exp.currency} {exp.actualAmount}
+                        {formatCurrency(exp.actualAmount, trip.currency)}
                       </div>
                       <button
                         onClick={() => deleteExpense(trip.id, exp.id)}
@@ -519,7 +571,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                     <div className="flex justify-between capitalize text-[#c0d1c7]">
                       <span>{cat}</span>
                       <span className="font-semibold text-white">
-                        {trip.currency} {amounts.actual}
+                        {formatCurrency(amounts.actual, trip.currency)}
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-[#1e2f26] rounded-full overflow-hidden">

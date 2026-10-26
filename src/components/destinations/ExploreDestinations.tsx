@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTravel } from '../../context/TravelContext';
 import { Destination, TravelCategory, Continent } from '../../types/travel';
 import { GroundingPanel } from '../grounding/GroundingPanel';
+import { convertCurrency, formatCurrency } from '../../lib/trip-logic';
 import {
   Search,
   MapPin,
@@ -35,7 +36,7 @@ const CONTINENTS: { id: string; label: string }[] = [
 ];
 
 export const ExploreDestinations: React.FC<ExploreDestinationsProps> = ({ onPlanTripTo }) => {
-  const { destinations, savedDestinationIds, toggleFavoriteDestination } = useTravel();
+  const { destinations, savedDestinationIds, toggleFavoriteDestination, currentCurrency } = useTravel();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContinent, setSelectedContinent] = useState<string>('all');
@@ -315,7 +316,7 @@ export const ExploreDestinations: React.FC<ExploreDestinationsProps> = ({ onPlan
                         </span>
                         <span className="font-bold text-[#ffd166] flex items-center gap-1">
                           <DollarSign className="w-3.5 h-3.5 text-[#52b788]" />
-                          {dest.currency} {dest.avgDailyBudget}/day
+                          {formatCurrency(convertCurrency(dest.avgDailyBudget, dest.currency || 'USD', currentCurrency), currentCurrency)}/day
                         </span>
                       </div>
                       <div>
@@ -439,7 +440,7 @@ export const ExploreDestinations: React.FC<ExploreDestinationsProps> = ({ onPlan
               <div className="absolute inset-0 bg-gradient-to-t from-[#121c17] via-transparent to-black/20" />
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs">
                 <span className="px-2.5 py-1 rounded-md bg-[#121c17]/90 text-white font-medium border border-[#2b4437]">
-                  Est. Daily: {inspectingDest.currency} {inspectingDest.avgDailyBudget}
+                  Est. Daily: {formatCurrency(convertCurrency(inspectingDest.avgDailyBudget, inspectingDest.currency || 'USD', currentCurrency), currentCurrency)}/day
                 </span>
                 <span className="px-2.5 py-1 rounded-md bg-[#121c17]/90 text-[#52b788] font-medium border border-[#2b4437]">
                   Coordinates: {inspectingDest.latitude.toFixed(2)}°, {inspectingDest.longitude.toFixed(2)}°

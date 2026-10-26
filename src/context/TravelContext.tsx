@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Trip, Destination, UserProfile, Expense, Activity, TripMemberRole } from '../types/travel';
 import { CURATED_DESTINATIONS } from '../data/curated-destinations';
-import { calculateBudgetSummary } from '../lib/trip-logic';
+import { calculateBudgetSummary, convertTripCurrency, convertCurrency } from '../lib/trip-logic';
 
 interface TravelContextType {
   trips: Trip[];
@@ -9,6 +9,10 @@ interface TravelContextType {
   savedDestinationIds: string[];
   destinations: Destination[];
   userProfile: UserProfile;
+  currentCurrency: string;
+  setCurrentCurrency: (currency: string) => void;
+  changeTripCurrency: (tripId: string, newCurrency: string) => void;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
   createTrip: (tripData: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>) => Trip;
   updateTrip: (id: string, updates: Partial<Trip>) => void;
   deleteTrip: (id: string) => void;
@@ -52,8 +56,10 @@ const INITIAL_TRIPS: Trip[] = [
     currency: 'USD',
     travelStyle: 'balanced',
     interests: ['culture', 'heritage', 'food', 'nature', 'architecture'],
-    transportPreferences: ['walking', 'public_transport', 'train'],
+    transportPreferences: ['private_car', 'walking', 'public_transport', 'train'],
     accommodationPreferences: 'Traditional Machiya Ryokan',
+    dietaryPreference: 'veg_nonveg',
+    customPrompt: 'Scenic road trip stops and authentic vegetarian & local food options',
     status: 'upcoming',
     coverImageUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop',
     createdAt: '2026-10-20T10:00:00Z',
@@ -314,15 +320,49 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
 
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-
-  // Sync to localStorage
-  useEffect(() => {
+  const [currentCurrency, setCurrentCurrencyState] = useState<string>(() => {
     try {
-      localStorage.setItem('tripup_ai_trips', JSON.stringify(trips));
-    } catch (e) {
-      console.warn('Storage sync error:', e);
+      return localStorage.getItem('tripup_ai_currency') || 'INR';
+    } catch {
+      return 'INR';
     }
-  }, [trips]);
+  });
+
+  const setCurrentCurrency = (curr: string) => {
+    setCurrentCurrencyState(curr);
+    try {
+      localStorage.setItem('tripup_ai_currency', curr);
+    } catch (e) {
+      console.warn(e);
+    }
+    setUserProfile(prev => ({ ...prev, preferredCurrency: curr }));
+    // Also update any trip that was in the previous currency to the new currency
+    setTrips(prev => prev.map(trip => convertTripCurrency(trip, curr)));
+  };
+
+  const changeTripCurrency = (tripId: string, newCurrency: string) => {
+    setTrips(prev =>
+      prev.map(trip => {
+        if (trip.id !== tripId) return trip;
+        return convertTripCurrency(trip, newCurrency);
+      })
+    );
+  };
+
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    setUserProfile(prev => {
+      const next = { ...prev, ...updates };
+      if (updates.preferredCurrency) {
+        setCurrentCurrencyState(updates.preferredCurrency);
+        try {
+          localStorage.setItem('tripup_ai_currency', updates.preferredCurrency);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     try {
@@ -538,6 +578,10 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         savedDestinationIds,
         destinations: CURATED_DESTINATIONS,
         userProfile,
+        currentCurrency,
+        setCurrentCurrency,
+        changeTripCurrency,
+        updateUserProfile,
         createTrip,
         updateTrip,
         deleteTrip,

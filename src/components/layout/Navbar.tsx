@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Compass, Sparkles, Menu, X, Plus, User, Globe } from 'lucide-react';
+import { Compass, Menu, X, Plus, User, Globe, ChevronDown } from 'lucide-react';
 import { useTravel } from '../../context/TravelContext';
+import { SUPPORTED_CURRENCIES } from '../../lib/trip-logic';
 
 interface NavbarProps {
   currentView: string;
@@ -10,7 +11,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenNewTrip }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { userProfile, trips } = useTravel();
+  const { trips, currentCurrency, setCurrentCurrency } = useTravel();
 
   const navLinks = [
     { id: 'home', label: 'Home' },
@@ -27,11 +28,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
 
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0c120f]/95 border-b border-[#203328] backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
         {/* Brand Logo */}
         <button
           onClick={() => handleLinkClick('home')}
-          className="flex items-center gap-2.5 text-left group"
+          className="flex items-center gap-2.5 text-left group shrink-0"
         >
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2e5d4b] to-[#12241c] border border-[#52b788]/40 flex items-center justify-center text-[#52b788] shadow-md group-hover:scale-105 transition-transform">
             <Compass className="w-5 h-5 text-[#52b788]" />
@@ -47,12 +48,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
         </button>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 text-xs font-semibold">
+        <nav className="hidden lg:flex items-center gap-1 text-xs font-semibold">
           {navLinks.map(link => (
             <button
               key={link.id}
               onClick={() => handleLinkClick(link.id)}
-              className={`px-3 py-2 rounded-lg transition-colors ${
+              className={`px-3 py-2 rounded-lg transition-colors whitespace-nowrap ${
                 currentView === link.id
                   ? 'text-white bg-[#182620] border border-[#2b4437]'
                   : 'text-[#9fb4a7] hover:text-[#f4efe6] hover:bg-[#14201a]'
@@ -63,11 +64,29 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
           ))}
         </nav>
 
-        {/* Right Action CTA & Profile */}
-        <div className="hidden sm:flex items-center gap-2.5">
+        {/* Right Action CTA & Currency & Profile */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
+          {/* Active Global Currency Selector */}
+          <div className="relative flex items-center">
+            <select
+              value={currentCurrency}
+              onChange={e => setCurrentCurrency(e.target.value)}
+              className="appearance-none bg-[#14201a] hover:bg-[#1a2c22] border border-[#2b4437] text-white font-bold text-xs pl-3 pr-7 py-2 rounded-xl focus:outline-none focus:border-[#52b788] cursor-pointer transition-colors"
+              title="Change Global Currency (INR ₹, USD $, EUR €...)"
+              aria-label="Select Currency"
+            >
+              {Object.values(SUPPORTED_CURRENCIES).map(curr => (
+                <option key={curr.code} value={curr.code} className="bg-[#121c17] text-white">
+                  {curr.symbol} {curr.code}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-[#52b788] absolute right-2.5 pointer-events-none" />
+          </div>
+
           <button
             onClick={() => handleLinkClick('settings')}
-            className="p-2 rounded-xl bg-[#14201a] hover:bg-[#1f3128] border border-[#2b4437] text-[#c0d1c7] transition-colors"
+            className="p-2 rounded-xl bg-[#14201a] hover:bg-[#1f3128] border border-[#2b4437] text-[#c0d1c7] transition-colors shrink-0"
             title="Profile & Settings"
             aria-label="Profile Settings"
           >
@@ -75,32 +94,46 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
           </button>
           <button
             onClick={onOpenNewTrip}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#52b788] hover:bg-[#40916c] text-[#0c120f] font-bold text-xs shadow-md transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#52b788] hover:bg-[#40916c] text-[#0c120f] font-bold text-xs shadow-md transition-all whitespace-nowrap shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>Plan My Trip</span>
           </button>
         </div>
 
-        {/* Mobile Hamburger Button */}
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-lg bg-[#14201a] border border-[#2b4437] text-[#c0d1c7] md:hidden"
-          aria-label="Toggle mobile menu"
-        >
-          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        {/* Mobile Hamburger Button and Quick Currency */}
+        <div className="flex items-center gap-1.5 sm:hidden">
+          <select
+            value={currentCurrency}
+            onChange={e => setCurrentCurrency(e.target.value)}
+            className="bg-[#14201a] border border-[#2b4437] text-white font-bold text-xs px-2 py-1.5 rounded-lg focus:outline-none"
+            aria-label="Currency"
+          >
+            {Object.values(SUPPORTED_CURRENCIES).map(curr => (
+              <option key={curr.code} value={curr.code} className="bg-[#121c17] text-white">
+                {curr.symbol} {curr.code}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg bg-[#14201a] border border-[#2b4437] text-[#c0d1c7]"
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-[#0e1612] border-b border-[#23382d] p-4 space-y-3">
+        <div className="sm:hidden bg-[#0e1612] border-b border-[#23382d] p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2 text-xs font-medium">
             {navLinks.map(link => (
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id)}
-                className={`p-2.5 rounded-lg text-left transition-colors ${
+                className={`p-2.5 rounded-lg text-left transition-colors whitespace-nowrap overflow-hidden text-ellipsis ${
                   currentView === link.id
                     ? 'bg-[#21352a] text-white border border-[#52b788]/60'
                     : 'bg-[#14201a] text-[#a4b8ad]'
@@ -110,6 +143,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
               </button>
             ))}
           </div>
+
+          <div className="flex items-center justify-between p-2.5 bg-[#14201a] border border-[#263b2f] rounded-xl text-xs">
+            <span className="text-[#8ca395]">Currency:</span>
+            <select
+              value={currentCurrency}
+              onChange={e => setCurrentCurrency(e.target.value)}
+              className="bg-[#1e2f26] border border-[#2e5d4b] text-white font-bold text-xs px-2 py-1 rounded"
+            >
+              {Object.values(SUPPORTED_CURRENCIES).map(c => (
+                <option key={c.code} value={c.code}>
+                  {c.symbol} {c.code} ({c.name})
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={() => {
               setIsMobileMenuOpen(false);
