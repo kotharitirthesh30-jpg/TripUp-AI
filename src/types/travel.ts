@@ -27,6 +27,22 @@ export const ExpenseCategorySchema = z.enum([
 
 export type ExpenseCategory = z.infer<typeof ExpenseCategorySchema>;
 
+// Activity Option / Alternative Choice
+export const ActivityOptionSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string(),
+  placeId: z.string().optional(),
+  address: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  category: TravelCategorySchema.default('culture'),
+  estimatedCost: z.number().nonnegative().default(0),
+  badge: z.string().optional(), // e.g. "Scenic Choice", "Heritage Option", "Spiritual Route", "Beach Adventure"
+});
+
+export type ActivityOption = z.infer<typeof ActivityOptionSchema>;
+
 // Activity Schema
 export const ActivitySchema = z.object({
   id: z.string(),
@@ -46,9 +62,27 @@ export const ActivitySchema = z.object({
   sourceUrl: z.string().optional(),
   verificationStatus: z.enum(['verified', 'suggested']).default('verified'),
   weatherNote: z.string().optional(),
+  options: z.array(ActivityOptionSchema).optional(),
+  selectedOptionId: z.string().optional(),
 });
 
 export type Activity = z.infer<typeof ActivitySchema>;
+
+// Route Waypoint Halt Option
+export const RouteOptionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  routePath: z.string(),
+  distanceKm: z.number(),
+  drivingDuration: z.string(),
+  haltSpot: z.string(),
+  description: z.string(),
+  highlights: z.array(z.string()),
+  badge: z.string().optional(),
+  isSelected: z.boolean().default(false),
+});
+
+export type RouteOption = z.infer<typeof RouteOptionSchema>;
 
 // Itinerary Day Schema
 export const ItineraryDaySchema = z.object({
@@ -56,6 +90,10 @@ export const ItineraryDaySchema = z.object({
   dayNumber: z.number().int().positive(),
   date: z.string(), // YYYY-MM-DD
   summary: z.string(),
+  routeSegment: z.string().optional(),
+  haltNote: z.string().optional(),
+  dayThemeOptions: z.array(z.string()).optional(),
+  selectedDayTheme: z.string().optional(),
   activities: z.array(ActivitySchema),
 });
 
@@ -126,6 +164,7 @@ export const TripSchema = z.object({
   customPrompt: z.string().optional(),
   status: z.enum(['draft', 'upcoming', 'ongoing', 'completed', 'archived']).default('upcoming'),
   coverImageUrl: z.string().optional(),
+  routeOptions: z.array(RouteOptionSchema).optional(),
   itinerary: z.array(ItineraryDaySchema).default([]),
   expenses: z.array(ExpenseSchema).default([]),
   members: z.array(TripMemberSchema).default([]),

@@ -25,6 +25,8 @@ interface TravelContextType {
   addActivity: (tripId: string, dayId: string, activity: Omit<Activity, 'id'>) => void;
   deleteActivity: (tripId: string, dayId: string, activityId: string) => void;
   reorderActivities: (tripId: string, dayId: string, newActivities: Activity[]) => void;
+  selectRouteOption: (tripId: string, routeOptionId: string) => void;
+  selectActivityOption: (tripId: string, dayId: string, activityId: string, optionId: string) => void;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -570,6 +572,54 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const selectRouteOption = (tripId: string, routeOptionId: string) => {
+    setTrips(prev =>
+      prev.map(trip => {
+        if (trip.id !== tripId || !trip.routeOptions) return trip;
+        return {
+          ...trip,
+          routeOptions: trip.routeOptions.map(ro => ({
+            ...ro,
+            isSelected: ro.id === routeOptionId,
+          })),
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
+  const selectActivityOption = (tripId: string, dayId: string, activityId: string, optionId: string) => {
+    setTrips(prev =>
+      prev.map(trip => {
+        if (trip.id !== tripId) return trip;
+        return {
+          ...trip,
+          itinerary: trip.itinerary.map(day => {
+            if (day.id !== dayId) return day;
+            return {
+              ...day,
+              activities: day.activities.map(act => {
+                if (act.id !== activityId) return act;
+                const chosenOption = act.options?.find(o => o.id === optionId);
+                if (!chosenOption) return act;
+                return {
+                  ...act,
+                  selectedOptionId: optionId,
+                  title: chosenOption.title,
+                  description: chosenOption.description,
+                  category: chosenOption.category || act.category,
+                  estimatedCost: chosenOption.estimatedCost !== undefined ? chosenOption.estimatedCost : act.estimatedCost,
+                  address: chosenOption.address || act.address,
+                };
+              }),
+            };
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
   return (
     <TravelContext.Provider
       value={{
@@ -594,6 +644,8 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addActivity,
         deleteActivity,
         reorderActivities,
+        selectRouteOption,
+        selectActivityOption,
       }}
     >
       {children}

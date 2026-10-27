@@ -7,6 +7,7 @@ import {
   queryGoogleMapsGrounding,
   queryGoogleSearchGrounding
 } from './src/server/gemini-api';
+import { generateSmartItinerary } from './src/lib/ai/itinerary-generator';
 
 dotenv.config();
 
@@ -85,8 +86,27 @@ async function startServer() {
 
       return res.json(itineraryResult);
     } catch (err: any) {
-      console.error('Error generating itinerary:', err);
-      return res.status(500).json({ error: err.message || 'Internal server error generating itinerary' });
+      console.error('Error generating itinerary in server handler:', err);
+      const input = req.body || {};
+      const fallbackResult = generateSmartItinerary({
+        origin: input.origin || 'Source',
+        destination: input.destination || 'Destination',
+        startDate: input.startDate || new Date().toISOString().split('T')[0],
+        endDate: input.endDate || new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+        travelers: Number(input.travelers) || 2,
+        budgetAmount: typeof input.budgetAmount === 'number' ? input.budgetAmount : (Number(input.budgetAmount) || 0),
+        currency: input.currency || 'INR',
+        interests: input.interests || ['culture', 'food', 'nature'],
+        travelStyle: input.travelStyle || 'balanced',
+        transportPreferences: input.transportPreferences || ['private_car', 'walking'],
+        accommodationPreferences: input.accommodationPreferences || 'boutique hotel',
+        dietaryPreference: input.dietaryPreference || 'veg_nonveg',
+        customPrompt: input.customPrompt || '',
+      });
+      return res.json({
+        ...fallbackResult,
+        source: 'smart-engine',
+      });
     }
   });
 
@@ -195,7 +215,13 @@ async function startServer() {
       { name: 'Singapore', country: 'Singapore', continent: 'Asia', lat: 1.3521, lng: 103.8198, type: 'city' },
       { name: 'Seoul, South Korea', country: 'South Korea', continent: 'Asia', lat: 37.5665, lng: 126.978, type: 'city' },
       { name: 'Jeju Island, South Korea', country: 'South Korea', continent: 'Asia', lat: 33.4996, lng: 126.5312, type: 'nature' },
+      { name: 'Tithal Beach (Valsad), Gujarat, India', country: 'India', continent: 'Asia', lat: 20.6094, lng: 72.8983, type: 'coastal' },
+      { name: 'Nashik Road & Nashik, Maharashtra, India', country: 'India', continent: 'Asia', lat: 19.9975, lng: 73.7898, type: 'heritage' },
+      { name: 'Saputara Hill Station, Gujarat, India', country: 'India', continent: 'Asia', lat: 20.5794, lng: 73.7483, type: 'mountain' },
       { name: 'Jaipur & Agra (Taj Mahal), India', country: 'India', continent: 'Asia', lat: 27.1751, lng: 78.0421, type: 'heritage' },
+      { name: 'Goa Beaches & Old Goa, India', country: 'India', continent: 'Asia', lat: 15.2993, lng: 74.124, type: 'coastal' },
+      { name: 'Mumbai, Maharashtra, India', country: 'India', continent: 'Asia', lat: 19.076, lng: 72.8777, type: 'city' },
+      { name: 'Udaipur & Lake Pichola, Rajasthan, India', country: 'India', continent: 'Asia', lat: 24.5854, lng: 73.7125, type: 'heritage' },
       { name: 'Varanasi, India', country: 'India', continent: 'Asia', lat: 25.3176, lng: 82.9739, type: 'culture' },
       { name: 'Hanoi & Ha Long Bay, Vietnam', country: 'Vietnam', continent: 'Asia', lat: 21.0285, lng: 105.8542, type: 'nature' },
       { name: 'Da Nang & Hoi An, Vietnam', country: 'Vietnam', continent: 'Asia', lat: 15.8801, lng: 108.338, type: 'heritage' },

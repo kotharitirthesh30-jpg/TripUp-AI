@@ -222,37 +222,56 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
     if (!validateStep(5)) return;
 
     setIsGenerating(true);
-    setGenerationStepText('Connecting to Google Gemini API...');
+    setGenerationStepText(`Analyzing road route from ${origin.split(',')[0]} to ${destination.split(',')[0]}...`);
+
+    const t1 = setTimeout(() => setGenerationStepText('Mapping scenic waypoints & 1-day halt options...'), 600);
+    const t2 = setTimeout(() => setGenerationStepText('Selecting verified landmarks & dual activity options...'), 1400);
+    const t3 = setTimeout(() => setGenerationStepText(`Configuring ${dietaryPreference === 'pure_veg' ? '100% Pure Veg' : 'custom'} dining & budget...`), 2200);
+
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 4200);
 
     try {
-      setTimeout(() => setGenerationStepText('Architecting daily timeline & route distances...'), 1200);
-      setTimeout(() => setGenerationStepText('Balancing budget estimates & verified venues...'), 2400);
-
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origin,
-          destination,
-          startDate,
-          endDate,
-          travelers,
-          budgetAmount,
-          currency,
-          travelStyle,
-          interests: selectedInterests,
-          transportPreferences: transportPrefs,
-          accommodationPreferences: accommodationPref,
-          dietaryPreference,
-          customPrompt,
-        }),
-      });
-
       let genData;
-      if (response.ok) {
-        genData = await response.json();
-      } else {
-        // Local procedural smart generator fallback
+      try {
+        const response = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: abortController.signal,
+          body: JSON.stringify({
+            origin,
+            destination,
+            startDate,
+            endDate,
+            travelers,
+            budgetAmount,
+            currency,
+            travelStyle,
+            interests: selectedInterests,
+            transportPreferences: transportPrefs,
+            accommodationPreferences: accommodationPref,
+            dietaryPreference,
+            customPrompt,
+          }),
+        });
+
+        if (response.ok) {
+          genData = await response.json();
+        }
+      } catch (fetchErr) {
+        // Abort or network error - immediately fallback to smart generator
+        console.info('Switching to instant smart engine generator:', fetchErr);
+      }
+
+      clearTimeout(timeoutId);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+
+      if (!genData || !genData.days || genData.days.length === 0) {
+        // Instant procedural smart generator fallback
         const { generateSmartItinerary } = await import('../../lib/ai/itinerary-generator');
         genData = generateSmartItinerary({
           origin,
@@ -327,6 +346,7 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
         customPrompt,
         status: 'upcoming',
         coverImageUrl,
+        routeOptions: genData.routeOptions || [],
         itinerary: genData.days || [],
         expenses,
         members: [],
@@ -499,6 +519,82 @@ export const NewTripWizard: React.FC<NewTripWizardProps> = ({
                 placeholder="e.g. Mumbai, India or San Francisco, CA"
                 className="w-full bg-[#182620] border border-[#2b4437] rounded-xl px-4 py-3 text-sm text-[#f4efe6] focus:outline-none focus:border-[#52b788]"
               />
+            </div>
+
+            {/* Popular Road Trip Routes with Halts & Options */}
+            <div className="p-3 bg-[#16251e] border border-[#263e30] rounded-xl space-y-2">
+              <span className="text-[11px] font-semibold text-[#8ebfa4] flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5 text-[#52b788]" />
+                <span>Popular En Route Road Trips (with Halts & Options):</span>
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrigin('Nashik Road, Maharashtra, India');
+                    setDestination('Goa, India');
+                    setCurrency('INR');
+                    setBudgetAmount(0);
+                    setDietaryPreference('pure_veg');
+                    setTransportPrefs(['private_car', 'walking']);
+                    setCustomPrompt('I need a halt between source and destination for a day and explore nearby area');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#244232] hover:bg-[#2d533f] border border-[#52b788] text-xs font-semibold text-white flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <span>🚗 Nashik Road ➔ Goa</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#52b788] text-[#0c1511] font-bold">Kolhapur & Amboli Halt</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrigin('Nashik Road, Maharashtra, India');
+                    setDestination('Tithal Beach (Valsad), Gujarat, India');
+                    setCurrency('INR');
+                    setBudgetAmount(0);
+                    setDietaryPreference('pure_veg');
+                    setTransportPrefs(['private_car', 'walking']);
+                    setCustomPrompt('I need a halt between source and destination for a day and explore nearby area');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#1f372a] hover:bg-[#284938] border border-[#3e6b52] text-xs font-semibold text-white flex items-center gap-1.5 transition-all"
+                >
+                  <span>🚗 Nashik Road ➔ Tithal Beach</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#52b788] text-[#0c1511] font-bold">Saputara Halt</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrigin('Delhi, India');
+                    setDestination('Manali, Himachal Pradesh, India');
+                    setCurrency('INR');
+                    setBudgetAmount(0);
+                    setDietaryPreference('pure_veg');
+                    setTransportPrefs(['private_car', 'walking']);
+                    setCustomPrompt('I need a halt between source and destination for a day and explore nearby area');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#142019] hover:bg-[#1c2c22] border border-[#2a4234] text-xs text-[#c0d1c7] hover:text-white flex items-center gap-1.5 transition-all"
+                >
+                  <span>🚗 Delhi ➔ Manali</span>
+                  <span className="text-[10px] opacity-70">Kullu Valley Halt</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrigin('Mumbai, Maharashtra, India');
+                    setDestination('Goa Beaches, India');
+                    setCurrency('INR');
+                    setBudgetAmount(0);
+                    setTransportPrefs(['private_car', 'walking']);
+                    setCustomPrompt('Scenic coastal drive with halt along the Konkan coast');
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#142019] hover:bg-[#1c2c22] border border-[#2a4234] text-xs text-[#c0d1c7] hover:text-white flex items-center gap-1.5 transition-all"
+                >
+                  <span>🚗 Mumbai ➔ Goa</span>
+                  <span className="text-[10px] opacity-70">Konkan Coast</span>
+                </button>
+              </div>
             </div>
 
             {/* Quick popular picks grouped by continent */}

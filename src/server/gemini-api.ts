@@ -27,10 +27,10 @@ export async function generateGeminiItinerary(input: GenerationInput): Promise<G
 
   try {
     const ai = getAiClient();
-    const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
     const prompt = `
-You are TripUp AI's principal master travel architect. Generate a realistic, inspiring, chronologically coherent travel itinerary.
+You are TripUp AI's principal master travel architect. Generate a rich, non-generic, chronologically coherent travel itinerary with detailed options.
 Trip details:
 - Origin: ${input.origin}
 - Destination: ${input.destination}
@@ -44,49 +44,65 @@ Trip details:
 - Food & Dining Preference: ${input.dietaryPreference || 'Veg & Non-Veg (Mixed)'}
 - User Custom Instructions / Prompts: ${input.customPrompt || 'None'}
 
-Requirements:
-1. Provide a trip title and concise summary.
-2. Generate an itinerary day for each day between ${input.startDate} and ${input.endDate}.
-3. USER CUSTOM PROMPT COMPLIANCE: If the user provided custom instructions (such as "${input.customPrompt}"), you MUST STRICTLY HONOR THEM. If they asked for a midway halt between source and destination for a day to explore nearby areas, dedicate an itinerary day to this stopover.
-4. FOOD PREFERENCE COMPLIANCE: If Food Preference is "pure_veg", ALL dining recommendations MUST be 100% vegetarian / Jain friendly (strictly no meat, fish, or poultry). If "only_nonveg", emphasize authentic local meat, poultry, and seafood specialties. If "veg_nonveg", provide diverse culinary choices.
-5. PRIVATE CAR / TRANSIT: If "private_car" or "rental car" is selected, detail scenic driving stops, roadside viewpoints, and convenient parking.
-6. For each day, include 3 to 4 sequential, non-overlapping activities (Morning, Afternoon, Evening/Dinner).
-7. Each activity MUST have:
-   - id: unique string
-   - title: clear, evocative landmark or experience title
-   - description: 1-2 sentence rich context, insider tip, and transit notes
-   - address: realistic location or neighborhood
-   - startTime: "HH:mm" (24-hour format, e.g. "09:00")
-   - endTime: "HH:mm" (24-hour format, e.g. "11:30")
-   - durationMinutes: integer
-   - estimatedCost: numeric estimate in ${input.currency}
-   - currency: "${input.currency}"
-   - category: one of ["culture", "nature", "food", "adventure", "relaxation", "architecture", "art", "shopping", "heritage"]
-   - verificationStatus: "verified"
+CRITICAL INSTRUCTIONS:
+1. NEVER USE GENERIC PLACEHOLDERS like "Signature Landmark Exploration", "Local Craft Walk", or "Sunset Viewpoint & Culinary Discovery".
+2. Ground all places, highways, halts, and dining in real geographical landmarks (e.g. for Nashik to Goa: feature Kolhapur/Amboli Ghat halt, Fort Aguada, Calangute/Baga beach watersports, Anjuna sunset cliffs, Basilica of Bom Jesus Old Goa, Fontainhas Latin Quarter, and Goan Veg Thali/Solkadhi; for Nashik to Tithal: Saputara Hill Station, Saptashrungi, Tithal Black Sand, BAPS Swaminarayan Mandir, Sai Baba Temple, Valsad Gujarati Thali).
+3. ITINERARY WITH OPTIONS:
+   - Provide 2-3 "routeOptions" for the journey between Origin and Destination (e.g. Option 1: Scenic Mountain/Ghat Halt Route, Option 2: Spiritual & Cultural Heritage Halt, Option 3: Direct Express Route).
+   - For every activity, provide an "options" array with 2 distinct alternatives (Option A and Option B, e.g. watersports/adventure vs heritage/cultural or royal thali dining vs sunset promenade trail).
+4. USER CUSTOM PROMPT COMPLIANCE: If the user asked for a midway halt between source and destination (e.g. "I need a halt between source and destination for a day and explore nearby area"), dedicate Day 1 or a full day to exploring that exact midway halt.
+5. FOOD PREFERENCE COMPLIANCE: If Food Preference is "pure_veg", ALL dining recommendations MUST be 100% vegetarian / Jain friendly (strictly no meat, fish, or egg; mention authentic regional dishes like Gujarati/Goan/Maharashtrian vegetarian thali, rotla, and sweets). If "only_nonveg", emphasize authentic local meat and coastal seafood.
 
 Return ONLY valid JSON matching this schema:
 {
   "title": string,
   "summary": string,
+  "routeOptions": [
+    {
+      "id": string,
+      "title": string,
+      "routePath": string,
+      "distanceKm": number,
+      "drivingDuration": string,
+      "haltSpot": string,
+      "description": string,
+      "highlights": string[],
+      "badge": string,
+      "isSelected": boolean
+    }
+  ],
   "days": [
     {
       "id": string,
       "dayNumber": number,
       "date": "YYYY-MM-DD",
       "summary": string,
+      "routeSegment": string,
+      "haltNote": string,
       "activities": [
         {
           "id": string,
           "title": string,
           "description": string,
           "address": string,
-          "startTime": string,
-          "endTime": string,
+          "startTime": "HH:mm",
+          "endTime": "HH:mm",
           "durationMinutes": number,
           "estimatedCost": number,
-          "currency": string,
+          "currency": "${input.currency}",
           "category": string,
-          "verificationStatus": "verified"
+          "verificationStatus": "verified",
+          "options": [
+            {
+              "id": string,
+              "title": string,
+              "description": string,
+              "category": string,
+              "estimatedCost": number,
+              "address": string,
+              "badge": string
+            }
+          ]
         }
       ]
     }
@@ -94,14 +110,20 @@ Return ONLY valid JSON matching this schema:
 }
 `;
 
-    const response = await ai.models.generateContent({
+    const generatePromise = ai.models.generateContent({
       model,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        temperature: 0.6,
+        temperature: 0.4,
       },
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI model timeout (exceeded 3.5s)')), 3500)
+    );
+
+    const response = await Promise.race([generatePromise, timeoutPromise]);
 
     const text = response.text;
     if (!text) {
@@ -109,15 +131,22 @@ Return ONLY valid JSON matching this schema:
     }
 
     const parsed = JSON.parse(text);
+    if (!parsed.days || !Array.isArray(parsed.days) || parsed.days.length === 0) {
+      throw new Error('Gemini response missing valid days array');
+    }
+
     return {
       title: parsed.title || `${input.destination} Journey`,
       summary: parsed.summary || `Personalized trip to ${input.destination}`,
-      days: parsed.days || [],
+      days: parsed.days,
+      routeOptions: (parsed.routeOptions && parsed.routeOptions.length > 0)
+        ? parsed.routeOptions
+        : generateSmartItinerary(input).routeOptions,
       source: 'gemini-ai',
       modelUsed: model,
     };
   } catch (error) {
-    console.warn('Gemini generation fallback:', error);
+    console.warn('Gemini generation fallback to smart-engine:', error);
     const fallback = generateSmartItinerary(input);
     return {
       ...fallback,

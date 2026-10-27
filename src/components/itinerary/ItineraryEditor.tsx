@@ -31,7 +31,9 @@ import {
   Users,
   Copy,
   Check,
-  Globe
+  Globe,
+  Car,
+  Compass,
 } from 'lucide-react';
 
 interface ItineraryEditorProps {
@@ -52,6 +54,8 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
     deleteActivity,
     reorderActivities,
     changeTripCurrency,
+    selectRouteOption,
+    selectActivityOption,
   } = useTravel();
 
   const trip = trips.find(t => t.id === tripId) || trips[0];
@@ -292,59 +296,161 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
 
       {/* TAB 1: ITINERARY TIMELINE */}
       {activeTab === 'itinerary' && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Day Selector Sidebar */}
-          <div className="lg:col-span-1 space-y-2">
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#738e80] mb-2 px-1">
-              Itinerary Days ({trip.itinerary.length})
-            </div>
-            {trip.itinerary.map((day, idx) => (
-              <button
-                key={day.id}
-                onClick={() => setSelectedDayIndex(idx)}
-                className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
-                  selectedDayIndex === idx
-                    ? 'bg-[#213b2e] border-[#52b788] text-white shadow-md'
-                    : 'bg-[#14201a] border-[#2b4437] text-[#c0d1c7] hover:bg-[#1b2b23]'
-                }`}
-              >
+        <div className="space-y-6">
+          {/* Interactive Route Options & Waypoint Halts Banner */}
+          {trip.routeOptions && trip.routeOptions.length > 0 && (
+            <div className="p-5 bg-[#14201a] border border-[#2b4437] rounded-2xl shadow-lg space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#23352b] pb-3">
                 <div>
-                  <div className="text-xs font-bold">Day {day.dayNumber}</div>
-                  <div className="text-[11px] text-[#93a89c]">{day.date}</div>
-                </div>
-                <div className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#182620] text-[#a9beb2]">
-                  {day.activities.length} stops
-                </div>
-              </button>
-            ))}
-
-            <button
-              onClick={() => setIsAddActivityOpen(true)}
-              className="w-full mt-4 p-3 rounded-xl border border-dashed border-[#3d5a4a] text-xs font-semibold text-[#52b788] hover:bg-[#1a2c22] transition-colors flex items-center justify-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add Activity
-            </button>
-          </div>
-
-          {/* Activities Timeline */}
-          <div className="lg:col-span-3 space-y-4">
-            {activeDay && (
-              <>
-                {/* Day Summary Header */}
-                <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
-                      <span>Day {activeDay.dayNumber}: {activeDay.date}</span>
-                      <span className="text-xs font-normal text-[#8ca395]">— {activeDay.summary}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-[#213b2e] text-[#52b788]">
+                      <Compass className="w-4 h-4" />
+                    </span>
+                    <h2 className="text-sm md:text-base font-bold text-white tracking-wide">
+                      En Route Halts & Driving Corridor Options ({trip.origin} ➔ {trip.destination})
                     </h2>
                   </div>
-                  <button
-                    onClick={() => setIsAddActivityOpen(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-[#2e5d4b] hover:bg-[#3a735e] text-xs font-semibold rounded-lg text-white transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Stop
-                  </button>
+                  <p className="text-xs text-[#8ca395] mt-1">
+                    Select your preferred driving route and midway halt between source and destination:
+                  </p>
                 </div>
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#1c2c23] border border-[#30483a] text-[#52b788] self-start sm:self-auto">
+                  {trip.routeOptions.length} Route Options
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {trip.routeOptions.map((opt) => {
+                  const isSelected = opt.isSelected || (trip.routeOptions?.findIndex(r => r.isSelected) === -1 && opt.id === trip.routeOptions[0].id);
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => selectRouteOption(trip.id, opt.id)}
+                      className={`cursor-pointer rounded-xl p-4 border transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-[#1b2f24] border-[#52b788] shadow-md ring-1 ring-[#52b788]/40'
+                          : 'bg-[#111c16] border-[#25392e] hover:bg-[#16241c] text-[#a0b5a8]'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-1">
+                          {opt.badge && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isSelected ? 'bg-[#52b788] text-[#0f1814]' : 'bg-[#1e3025] text-[#93bba2]'
+                            }`}>
+                              {opt.badge}
+                            </span>
+                          )}
+                          {isSelected && (
+                            <span className="text-[11px] text-[#52b788] font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-xs font-bold text-white line-clamp-2">{opt.title}</h4>
+                        <p className="text-[11px] text-[#8ea598] line-clamp-3 leading-relaxed">{opt.description}</p>
+
+                        <div className="text-[11px] text-[#718b7e] font-mono pt-1">
+                          📍 {opt.routePath}
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {opt.highlights.slice(0, 3).map((hl, hIdx) => (
+                            <span key={hIdx} className="text-[10px] px-1.5 py-0.5 bg-[#17251f] rounded text-[#a6c1b1] border border-[#23352b]">
+                              {hl}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-[#23352b] flex items-center justify-between text-[11px]">
+                        <span className="text-[#ffd166] font-semibold">{opt.distanceKm} km · {opt.drivingDuration}</span>
+                        <button
+                          type="button"
+                          className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors ${
+                            isSelected ? 'bg-[#52b788] text-[#0d1612]' : 'bg-[#1e2f25] text-[#9ab0a3] hover:text-white'
+                          }`}
+                        >
+                          {isSelected ? 'Active Route' : 'Select'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Day Selector Sidebar */}
+            <div className="lg:col-span-1 space-y-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-[#738e80] mb-2 px-1">
+                Itinerary Days ({trip.itinerary.length})
+              </div>
+              {trip.itinerary.map((day, idx) => (
+                <button
+                  key={day.id}
+                  onClick={() => setSelectedDayIndex(idx)}
+                  className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                    selectedDayIndex === idx
+                      ? 'bg-[#213b2e] border-[#52b788] text-white shadow-md'
+                      : 'bg-[#14201a] border-[#2b4437] text-[#c0d1c7] hover:bg-[#1b2b23]'
+                  }`}
+                >
+                  <div>
+                    <div className="text-xs font-bold">Day {day.dayNumber}</div>
+                    <div className="text-[11px] text-[#93a89c]">{day.date}</div>
+                  </div>
+                  <div className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#182620] text-[#a9beb2]">
+                    {day.activities.length} stops
+                  </div>
+                </button>
+              ))}
+
+              <button
+                onClick={() => setIsAddActivityOpen(true)}
+                className="w-full mt-4 p-3 rounded-xl border border-dashed border-[#3d5a4a] text-xs font-semibold text-[#52b788] hover:bg-[#1a2c22] transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Activity
+              </button>
+            </div>
+
+            {/* Activities Timeline */}
+            <div className="lg:col-span-3 space-y-4">
+              {activeDay && (
+                <>
+                  {/* Day Summary Header */}
+                  <div className="p-4 bg-[#14201a] border border-[#2b4437] rounded-xl flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                        <span>Day {activeDay.dayNumber}: {activeDay.date}</span>
+                        <span className="text-xs font-normal text-[#8ca395]">— {activeDay.summary}</span>
+                      </h2>
+                      {(activeDay.routeSegment || activeDay.haltNote) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          {activeDay.routeSegment && (
+                            <span className="px-2.5 py-0.5 rounded-md bg-[#192b21] border border-[#2d493a] text-[#82c8a0] font-mono flex items-center gap-1.5">
+                              <Car className="w-3.5 h-3.5 text-[#52b788]" />
+                              <span>{activeDay.routeSegment}</span>
+                            </span>
+                          )}
+                          {activeDay.haltNote && (
+                            <span className="px-2.5 py-0.5 rounded-md bg-[#2d2919] border border-[#524922] text-[#ffe082] font-medium flex items-center gap-1">
+                              <span>📍</span>
+                              <span>{activeDay.haltNote}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setIsAddActivityOpen(true)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-[#2e5d4b] hover:bg-[#3a735e] text-xs font-semibold rounded-lg text-white transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Stop
+                    </button>
+                  </div>
 
                 {/* Schedule conflicts banner if any */}
                 {!scheduleValidation.valid && (
@@ -387,6 +493,70 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                               <MapPin className="w-3 h-3 text-[#52b788]" />
                               {act.address}
                             </p>
+                          )}
+
+                          {/* Activity Alternative Options Switcher */}
+                          {act.options && act.options.length > 1 && (
+                            <div className="mt-3 pt-3 border-t border-[#23352b]/80 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className="font-semibold text-[#8ba395] flex items-center gap-1.5">
+                                  <Sparkles className="w-3.5 h-3.5 text-[#ffd166]" />
+                                  <span>Options for this Stop:</span>
+                                </span>
+                                <span className="text-[10px] text-[#52b788] font-medium">Click to choose option</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                {act.options.map((opt, optIdx) => {
+                                  const isSelected = act.selectedOptionId
+                                    ? act.selectedOptionId === opt.id
+                                    : (optIdx === 0 || act.title === opt.title);
+
+                                  return (
+                                    <button
+                                      key={opt.id}
+                                      type="button"
+                                      onClick={() => selectActivityOption(trip.id, activeDay.id, act.id, opt.id)}
+                                      className={`p-2.5 rounded-lg text-left border transition-all flex flex-col justify-between ${
+                                        isSelected
+                                          ? 'bg-[#1e3427] border-[#52b788] text-white ring-1 ring-[#52b788]/40 shadow-sm'
+                                          : 'bg-[#0f1712] border-[#22352a] text-[#8ca395] hover:bg-[#15231c] hover:text-[#d4e4db]'
+                                      }`}
+                                    >
+                                      <div>
+                                        <div className="flex items-center justify-between gap-1 mb-1">
+                                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                            isSelected ? 'bg-[#52b788] text-[#0d1612]' : 'bg-[#18261f] text-[#7d9c8c]'
+                                          }`}>
+                                            Option {String.fromCharCode(65 + optIdx)}
+                                            {opt.badge ? ` · ${opt.badge}` : ''}
+                                          </span>
+                                          {isSelected && (
+                                            <span className="text-[10px] text-[#52b788] font-bold flex items-center gap-0.5">
+                                              <CheckCircle2 className="w-3 h-3" /> Selected
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs font-semibold line-clamp-1">{opt.title}</div>
+                                        <p className="text-[11px] text-[#849a8d] line-clamp-2 mt-0.5 leading-snug">
+                                          {opt.description}
+                                        </p>
+                                      </div>
+                                      <div className="mt-2 pt-1.5 border-t border-[#1c2c23] flex items-center justify-between text-[10px]">
+                                        <span className="text-[#ffd166] font-medium">
+                                          {opt.estimatedCost !== undefined && opt.estimatedCost > 0
+                                            ? formatCurrency(opt.estimatedCost, trip.currency)
+                                            : 'Free / Included'}
+                                        </span>
+                                        <span className={`font-semibold ${isSelected ? 'text-[#52b788]' : 'text-[#6a8476]'}`}>
+                                          {isSelected ? 'Active Choice' : 'Switch ➔'}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           )}
                         </div>
 
@@ -433,7 +603,8 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
             )}
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* TAB 2: BUDGET & EXPENSES */}
       {activeTab === 'budget' && (
@@ -618,9 +789,17 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
           <div className="space-y-3">
             {trip.itinerary.map(day => (
               <div key={day.id} className="p-4 bg-[#17251f] border border-[#263b2f] rounded-xl">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#52b788] mb-2.5">
-                  Day {day.dayNumber}: {day.summary}
-                </h4>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#52b788]">
+                    Day {day.dayNumber}: {day.summary}
+                  </h4>
+                  {day.routeSegment && (
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-[#1f3327] text-[#8fd2ad] border border-[#2e4939] font-mono flex items-center gap-1">
+                      <Car className="w-3 h-3 text-[#52b788]" />
+                      <span>{day.routeSegment}</span>
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {day.activities.map((act, i) => (
                     <div key={act.id} className="p-3 bg-[#111c16] border border-[#22352a] rounded-lg text-xs space-y-1">

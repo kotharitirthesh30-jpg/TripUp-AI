@@ -170,3 +170,136 @@ test('formatCurrency outputs rupee symbol and formatting for INR', () => {
   assert.equal(formattedUsd, '$1,200');
 });
 
+import { generateSmartItinerary } from './ai/itinerary-generator';
+
+test('generateSmartItinerary generates tailored Nashik Road to Tithal Beach route with options', () => {
+  const result = generateSmartItinerary({
+    origin: 'Nashik Road, Maharashtra',
+    destination: 'Tithal Beach, Valsad, Gujarat',
+    startDate: '2026-11-10',
+    endDate: '2026-11-13',
+    travelers: 2,
+    budgetAmount: 0,
+    currency: 'INR',
+    interests: ['culture', 'nature', 'food'],
+    travelStyle: 'balanced',
+    transportPreferences: ['private_car'],
+    accommodationPreferences: 'Boutique Hotel',
+    dietaryPreference: 'pure_veg',
+    customPrompt: 'I need a halt between source and destination for a day and explore nearby area',
+  });
+
+  // Verify non-generic
+  assert.ok(!result.days.some(d => d.activities.some(a => a.title.includes('Signature Landmark Exploration'))));
+
+  // Verify Route Options exist
+  assert.ok(result.routeOptions && result.routeOptions.length >= 2, 'Must have at least 2 route options');
+  const hasSaputaraHalt = result.routeOptions?.some(r => r.title.toLowerCase().includes('saputara'));
+  assert.ok(hasSaputaraHalt, 'Must include Saputara Hill Station halt option');
+
+  // Verify Tithal Beach specific landmarks
+  const allTitles = result.days.flatMap(d => d.activities.map(a => a.title)).join(' ');
+  const allAddresses = result.days.flatMap(d => d.activities.map(a => a.address || '')).join(' ');
+  const fullText = (allTitles + ' ' + allAddresses).toLowerCase();
+
+  assert.ok(fullText.includes('tithal') || fullText.includes('valsad'), 'Must reference Tithal or Valsad');
+  assert.ok(fullText.includes('saputara'), 'Must reference Saputara halt');
+
+  // Verify each activity has alternative options
+  const activitiesWithOptions = result.days.flatMap(d => d.activities).filter(a => a.options && a.options.length > 1);
+  assert.ok(activitiesWithOptions.length >= 3, 'Activities must provide selectable alternative options');
+
+  // Verify pure veg dining
+  const foodActivities = result.days.flatMap(d => d.activities).filter(a => a.category === 'food');
+  assert.ok(foodActivities.some(a => a.title.toLowerCase().includes('pure veg') || a.title.toLowerCase().includes('thali')));
+});
+
+test('generateSmartItinerary generates detailed Nashik Road to Goa road trip with Kolhapur halt and Goa landmarks', () => {
+  const result = generateSmartItinerary({
+    origin: 'Nashik Road, Maharashtra, India',
+    destination: 'Goa, India',
+    startDate: '2026-11-01',
+    endDate: '2026-11-05',
+    travelers: 2,
+    budgetAmount: 25000,
+    currency: 'INR',
+    interests: ['culture', 'nature', 'food'],
+    travelStyle: 'balanced',
+    transportPreferences: ['private_car'],
+    accommodationPreferences: 'Beach Resort',
+    dietaryPreference: 'pure_veg',
+    customPrompt: 'I need a halt between source and destination for a day and explore nearby area',
+  });
+
+  // Verify non-generic
+  assert.ok(!result.days.some(d => d.activities.some(a => a.title.includes('Signature Landmark Exploration'))));
+  assert.ok(!result.days.some(d => d.activities.some(a => a.title.includes('Midway Waypoint en route to Goa'))));
+
+  // Verify Route Options
+  assert.ok(result.routeOptions && result.routeOptions.length >= 3, 'Must have 3 route options for Goa road trip');
+  const hasKolhapurHalt = result.routeOptions?.some(r => r.title.toLowerCase().includes('kolhapur') || r.haltSpot.toLowerCase().includes('kolhapur'));
+  assert.ok(hasKolhapurHalt, 'Must include Kolhapur & Amboli Ghat halt route option');
+
+  // Verify Day 1 dedicated to midway halt (Kolhapur Mahalakshmi & Rankala Lake)
+  const day1Text = (result.days[0].summary + ' ' + result.days[0].activities.map(a => a.title).join(' ')).toLowerCase();
+  assert.ok(day1Text.includes('kolhapur'), 'Day 1 must feature Kolhapur halt');
+  assert.ok(day1Text.includes('mahalakshmi') || day1Text.includes('rankala'), 'Day 1 must feature Mahalakshmi Temple or Rankala Lake');
+
+  // Verify iconic Goa landmarks across days
+  const allGoaText = result.days.flatMap(d => d.activities.map(a => a.title + ' ' + a.description)).join(' ').toLowerCase();
+  assert.ok(allGoaText.includes('amboli'), 'Must include Amboli Ghat waterfalls');
+  assert.ok(allGoaText.includes('aguada'), 'Must include Fort Aguada');
+  assert.ok(allGoaText.includes('baga') || allGoaText.includes('calangute'), 'Must include Baga / Calangute');
+  assert.ok(allGoaText.includes('bom jesus'), 'Must include Basilica of Bom Jesus');
+  assert.ok(allGoaText.includes('fontainhas'), 'Must include Fontainhas Latin Quarter');
+
+  // Verify alternative options on activities
+  const actsWithOptions = result.days.flatMap(d => d.activities).filter(a => a.options && a.options.length >= 2);
+  assert.ok(actsWithOptions.length >= 5, 'Must provide selectable options across activities');
+
+  // Verify 100% Pure Veg Goan dining
+  const foodActs = result.days.flatMap(d => d.activities).filter(a => a.category === 'food');
+  assert.ok(foodActs.some(a => a.title.toLowerCase().includes('pure veg') || a.description.toLowerCase().includes('pure veg')));
+  assert.ok(allGoaText.includes('khatkhate') || allGoaText.includes('solkadhi') || allGoaText.includes('thali'));
+});
+
+test('generateSmartItinerary generates rich, non-repeating itinerary with options for any universal destination', () => {
+  const result = generateSmartItinerary({
+    origin: 'Delhi, India',
+    destination: 'Manali, Himachal Pradesh, India',
+    startDate: '2026-11-01',
+    endDate: '2026-11-04',
+    travelers: 2,
+    budgetAmount: 18000,
+    currency: 'INR',
+    interests: ['nature', 'food'],
+    travelStyle: 'relaxed',
+    transportPreferences: ['private_car'],
+    accommodationPreferences: 'Hill Resort',
+    dietaryPreference: 'pure_veg',
+    customPrompt: 'I need a halt between source and destination for a day and explore nearby area',
+  });
+
+  assert.equal(result.days.length, 4, 'Must generate exactly 4 days');
+  assert.ok(result.routeOptions && result.routeOptions.length >= 2, 'Must generate route options');
+
+  // Verify Manali curated landmarks
+  const allText = result.days.flatMap(d => d.activities.map(a => a.title)).join(' ').toLowerCase();
+  assert.ok(allText.includes('hadimba'), 'Must feature Hadimba Devi Temple');
+  assert.ok(allText.includes('solang'), 'Must feature Solang Valley');
+  assert.ok(allText.includes('jogini'), 'Must feature Jogini Waterfalls');
+
+  // Verify each day has distinct morning, afternoon, and evening activities
+  const titles = result.days.flatMap(d => d.activities.map(a => a.title));
+  const uniqueTitles = new Set(titles);
+  assert.equal(titles.length, uniqueTitles.size, 'Every activity title across days must be unique (no repetitive slop)');
+
+  // Verify options exist
+  result.days.forEach(d => {
+    d.activities.forEach(a => {
+      assert.ok(a.options && a.options.length >= 2, `Activity ${a.title} must have at least 2 selectable options`);
+    });
+  });
+});
+
+
