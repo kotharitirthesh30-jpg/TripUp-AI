@@ -6,9 +6,13 @@ import {
   validateDaySchedule,
   doActivitiesOverlap,
   formatCurrency,
+  cleanMapsLocation,
   SUPPORTED_CURRENCIES,
 } from '../../lib/trip-logic';
 import { GroundingPanel } from '../grounding/GroundingPanel';
+import { TravelCopilotDrawer } from './TravelCopilotDrawer';
+import { TripVersionComparisonModal } from './TripVersionComparisonModal';
+import { InteractiveRouteMap } from './InteractiveRouteMap';
 import {
   Calendar,
   Clock,
@@ -20,6 +24,7 @@ import {
   Sparkles,
   Share2,
   Printer,
+  History,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
@@ -62,6 +67,8 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
 
   const [activeTab, setActiveTab] = useState<'itinerary' | 'budget' | 'grounding' | 'map' | 'weather' | 'share'>('itinerary');
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
 
   // Edit Activity State
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -200,6 +207,21 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
 
           {/* Action pills on top right */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
+            <button
+              onClick={() => setIsCopilotOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1f3d2f] hover:bg-[#28503d] border border-[#52b788] text-xs font-semibold text-white transition-all shadow-md group cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#52b788] group-hover:rotate-12 transition-transform" />
+              <span>AI Copilot</span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-[#52b788] text-[#0c120f] font-bold">New</span>
+            </button>
+            <button
+              onClick={() => setIsVersionModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14201a]/90 hover:bg-[#1f3128] border border-[#2b4437] text-xs font-medium text-[#e2ded5] transition-colors cursor-pointer"
+            >
+              <History className="w-3.5 h-3.5 text-[#52b788]" />
+              <span>Versions ({trip.versions?.length || 0})</span>
+            </button>
             <button
               onClick={() => setActiveTab('share')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#14201a]/90 hover:bg-[#1f3128] border border-[#2b4437] text-xs font-medium text-[#e2ded5] transition-colors"
@@ -489,10 +511,23 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
                           <h3 className="text-sm font-bold text-white">{act.title}</h3>
                           <p className="text-xs text-[#9eb2a7] leading-relaxed">{act.description}</p>
                           {act.address && (
-                            <p className="text-[11px] text-[#718b7e] flex items-center gap-1 pt-1">
-                              <MapPin className="w-3 h-3 text-[#52b788]" />
-                              {act.address}
-                            </p>
+                            <div className="flex items-center gap-2 pt-1 text-[11px] text-[#718b7e]">
+                              <span className="flex items-center gap-1 truncate max-w-sm">
+                                <MapPin className="w-3 h-3 text-[#52b788] shrink-0" />
+                                <span className="truncate">{cleanMapsLocation(act.title, act.address, trip.destination)}</span>
+                              </span>
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  cleanMapsLocation(act.title, act.address, trip.destination)
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#52b788] hover:underline flex items-center gap-0.5 text-[10px] shrink-0 font-semibold"
+                              >
+                                <span>Google Maps</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            </div>
                           )}
 
                           {/* Activity Alternative Options Switcher */}
@@ -766,69 +801,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
       )}
 
       {/* TAB 3: ROUTE & MAP STOPS */}
-      {activeTab === 'map' && (
-        <div className="p-6 bg-[#14201a] border border-[#2b4437] rounded-2xl space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-white">Interactive Ordered Route Stops</h3>
-              <p className="text-xs text-[#8ca395]">
-                Waypoints and directions mapped for {trip.destination} with verified addresses.
-              </p>
-            </div>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trip.destination)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2e5d4b] hover:bg-[#3b755f] text-xs font-semibold text-white transition-colors"
-            >
-              <span>Open in Google Maps</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-
-          <div className="space-y-3">
-            {trip.itinerary.map(day => (
-              <div key={day.id} className="p-4 bg-[#17251f] border border-[#263b2f] rounded-xl">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#52b788]">
-                    Day {day.dayNumber}: {day.summary}
-                  </h4>
-                  {day.routeSegment && (
-                    <span className="text-[11px] px-2 py-0.5 rounded bg-[#1f3327] text-[#8fd2ad] border border-[#2e4939] font-mono flex items-center gap-1">
-                      <Car className="w-3 h-3 text-[#52b788]" />
-                      <span>{day.routeSegment}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {day.activities.map((act, i) => (
-                    <div key={act.id} className="p-3 bg-[#111c16] border border-[#22352a] rounded-lg text-xs space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-[#2e5d4b] text-white flex items-center justify-center font-bold text-[10px]">
-                          {i + 1}
-                        </span>
-                        <span className="font-semibold text-white truncate">{act.title}</span>
-                      </div>
-                      <p className="text-[#89a294] text-[11px] truncate">{act.address || trip.destination}</p>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                          act.address || `${act.title}, ${trip.destination}`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#52b788] hover:underline text-[11px] flex items-center gap-1 pt-1"
-                      >
-                        <span>Get directions</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {activeTab === 'map' && <InteractiveRouteMap trip={trip} />}
 
       {/* TAB 4: WEATHER FORECAST */}
       {activeTab === 'weather' && (
@@ -1138,6 +1111,39 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
           </div>
         </div>
       )}
+
+      {/* FLOATING ACTION: AI COPILOT LAUNCHER */}
+      {!isCopilotOpen && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setIsCopilotOpen(true)}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-[#1b3b2c] hover:bg-[#25523d] border border-[#52b788] text-white font-semibold text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all group cursor-pointer"
+          >
+            <div className="w-6 h-6 rounded-full bg-[#52b788] text-[#0c120f] flex items-center justify-center">
+              <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+            </div>
+            <span>Ask Travel Copilot</span>
+            <span className="w-2 h-2 rounded-full bg-[#52b788] animate-ping" />
+          </button>
+        </div>
+      )}
+
+      {/* AI TRAVEL COPILOT DRAWER */}
+      <TravelCopilotDrawer
+        trip={trip}
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        onApplyTripUpdate={(updatedTrip: Trip) => {
+          updateTrip(trip.id, updatedTrip);
+        }}
+      />
+
+      {/* TRIP VERSION COMPARISON & SNAPSHOTS MODAL */}
+      <TripVersionComparisonModal
+        trip={trip}
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+      />
     </div>
   );
 };

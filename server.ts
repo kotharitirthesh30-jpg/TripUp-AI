@@ -4,10 +4,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import {
   generateGeminiItinerary,
+  generateGeminiCopilotReply,
   queryGoogleMapsGrounding,
   queryGoogleSearchGrounding
 } from './src/server/gemini-api';
 import { generateSmartItinerary } from './src/lib/ai/itinerary-generator';
+import { generateSmartCopilotFallback } from './src/lib/trip-logic';
 
 dotenv.config();
 
@@ -107,6 +109,22 @@ async function startServer() {
         ...fallbackResult,
         source: 'smart-engine',
       });
+    }
+  });
+
+  // Feature One: AI Travel Copilot conversational refinement endpoint
+  app.post('/api/ai/copilot', async (req: Request, res: Response) => {
+    try {
+      const { trip, message, historySummary } = req.body;
+      if (!trip || !message) {
+        return res.status(400).json({ error: 'Missing trip or message parameter.' });
+      }
+      const copilotResult = await generateGeminiCopilotReply(trip, message, historySummary);
+      return res.json(copilotResult);
+    } catch (err: any) {
+      console.error('Error in Copilot endpoint:', err);
+      const fallback = generateSmartCopilotFallback(req.body?.trip, req.body?.message || '');
+      return res.json(fallback);
     }
   });
 

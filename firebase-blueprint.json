@@ -1,0 +1,128 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated traveler profile and preferences",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "User identifier matching Firebase Auth UID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Full display name of the traveler",
+          "maxLength": 120
+        },
+        "email": {
+          "type": "string",
+          "description": "User primary email address",
+          "maxLength": 150
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar photo URL",
+          "maxLength": 500
+        },
+        "preferredCurrency": {
+          "type": "string",
+          "description": "Default currency code",
+          "maxLength": 10
+        },
+        "timezone": {
+          "type": "string",
+          "description": "Preferred primary timezone",
+          "maxLength": 80
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of profile creation",
+          "maxLength": 50
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last profile update",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Travel itinerary record and companion configuration",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique trip identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Trip title",
+          "maxLength": 200
+        },
+        "destination": {
+          "type": "string",
+          "description": "Primary destination name",
+          "maxLength": 150
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Trip start date",
+          "maxLength": 30
+        },
+        "endDate": {
+          "type": "string",
+          "description": "Trip end date",
+          "maxLength": 30
+        },
+        "travelers": {
+          "type": "number",
+          "description": "Number of travelers"
+        },
+        "budgetAmount": {
+          "type": "number",
+          "description": "Budget allocated for trip"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Trip budget currency code",
+          "maxLength": 10
+        },
+        "travelStyle": {
+          "type": "string",
+          "description": "Travel style pace",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 50
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "userId", "title", "destination"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of private user profiles restricted to authenticated owner"
+    },
+    "/trips/{tripId}": {
+      "schema": "Trip",
+      "description": "Collection of saved trips manageable by owner or shared members"
+    }
+  }
+}

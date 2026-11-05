@@ -1350,9 +1350,9 @@ function generateUniversalDestinationItinerary(
     if (dayNumber === 1) {
       activities.push({
         id: `act-${dayNumber}-1`,
-        title: `Departure from ${origName} & Midway Scenic Waypoint Halt`,
-        description: `Begin your road trip via ${hasPrivateCar ? 'private car' : 'scenic transit'}. Enjoy a relaxed midway halt exploring country markets, roadside viewpoints, and regional artisan ateliers before continuing towards ${destName}.`,
-        address: `Midway Highway Stop en route to ${destName}`,
+        title: `Departure from ${origName} & Scenic Waypoint Arrival`,
+        description: `Begin your journey via ${hasPrivateCar ? 'scenic drive' : 'transit'}. Enjoy a relaxed stopover exploring regional markets, viewpoints, and cultural heritage on your way into ${destName}.`,
+        address: `${destName} Central Station & Scenic Waypoint, ${destName}`,
         startTime: '09:00',
         endTime: '13:00',
         durationMinutes: 240,

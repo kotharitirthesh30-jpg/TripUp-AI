@@ -165,6 +165,7 @@ export const TripSchema = z.object({
   status: z.enum(['draft', 'upcoming', 'ongoing', 'completed', 'archived']).default('upcoming'),
   coverImageUrl: z.string().optional(),
   routeOptions: z.array(RouteOptionSchema).optional(),
+  versions: z.array(z.lazy(() => TripVersionSnapshotSchema)).optional(),
   itinerary: z.array(ItineraryDaySchema).default([]),
   expenses: z.array(ExpenseSchema).default([]),
   members: z.array(TripMemberSchema).default([]),
@@ -173,6 +174,23 @@ export const TripSchema = z.object({
 });
 
 export type Trip = z.infer<typeof TripSchema>;
+
+// Trip Version Snapshot Schema
+export const TripVersionSnapshotSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.string(),
+  budgetAmount: z.number().nonnegative().default(0),
+  currency: z.string().default('USD'),
+  travelStyle: z.string().default('balanced'),
+  dayCount: z.number().int().positive(),
+  activityCount: z.number().int().nonnegative(),
+  summary: z.string().optional(),
+  itinerary: z.array(ItineraryDaySchema),
+});
+
+export type TripVersionSnapshot = z.infer<typeof TripVersionSnapshotSchema>;
+
 
 // User Profile
 export interface UserProfile {
@@ -223,4 +241,42 @@ export interface Destination {
     icon: string;
   };
   landmark3DType?: string;
+}
+
+// AI Travel Copilot Types
+export type CopilotChangeType =
+  | 'replace_activity'
+  | 'add_activity'
+  | 'remove_activity'
+  | 'update_activity'
+  | 'adjust_budget'
+  | 'adjust_pace'
+  | 'update_day_summary';
+
+export interface CopilotProposedChange {
+  id: string;
+  type: CopilotChangeType;
+  dayNumber: number;
+  targetActivityId?: string;
+  oldValuePreview?: string;
+  newValuePreview?: string;
+  replacementActivity?: Activity;
+  newBudgetAmount?: number;
+  reason: string;
+  applied?: boolean;
+}
+
+export interface CopilotMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  proposedChanges?: CopilotProposedChange[];
+  applied?: boolean;
+}
+
+export interface CopilotResponse {
+  reply: string;
+  proposedChanges: CopilotProposedChange[];
+  updatedItinerary?: ItineraryDay[];
 }

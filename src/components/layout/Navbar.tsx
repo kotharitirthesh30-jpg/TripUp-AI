@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Compass, Menu, X, Plus, User, Globe, ChevronDown } from 'lucide-react';
 import { useTravel } from '../../context/TravelContext';
 import { SUPPORTED_CURRENCIES } from '../../lib/trip-logic';
+import { GoogleLoginButton } from '../auth/GoogleLoginButton';
 
 interface NavbarProps {
   currentView: string;
@@ -84,6 +85,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
             <ChevronDown className="w-3.5 h-3.5 text-[#52b788] absolute right-2.5 pointer-events-none" />
           </div>
 
+          {/* Google Login / Account Component */}
+          <GoogleLoginButton variant="navbar" />
+
           <button
             onClick={() => handleLinkClick('settings')}
             className="p-2 rounded-xl bg-[#14201a] hover:bg-[#1f3128] border border-[#2b4437] text-[#c0d1c7] transition-colors shrink-0"
@@ -157,6 +161,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate, onOpenN
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="pt-1">
+            <GoogleLoginButton variant="full" />
           </div>
 
           <button

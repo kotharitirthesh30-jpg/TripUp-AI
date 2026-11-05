@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { GenerationInput, GenerationResult } from '../lib/ai/itinerary-generator';
 import { generateSmartItinerary } from '../lib/ai/itinerary-generator';
+import { Trip, CopilotResponse, CopilotProposedChange } from '../types/travel';
+import { generateSmartCopilotFallback } from '../lib/trip-logic';
 
 function getAiClient(): GoogleGenAI {
   return new GoogleGenAI({
@@ -350,3 +352,120 @@ export async function queryGoogleSearchGrounding(destination: string, query?: st
     };
   }
 }
+
+/**
+ * Feature One: AI Travel Copilot conversational itinerary refinement.
+ * Understands natural language requests (relax pace, rainy day, budget reduction, food options)
+ * and returns structured proposed changes.
+ */
+export async function generateGeminiCopilotReply(
+  trip: Trip,
+  userMessage: string,
+  historySummary?: string
+): Promise<CopilotResponse> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    return generateSmartCopilotFallback(trip, userMessage);
+  }
+
+  try {
+    const ai = getAiClient();
+    const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+
+    // Build condensed snapshot of the trip for the model
+    const tripOverview = {
+      title: trip.title,
+      destination: trip.destination,
+      durationDays: trip.itinerary.length,
+      budget: `${trip.currency} ${trip.budgetAmount}`,
+      dietaryPreference: trip.dietaryPreference,
+      travelStyle: trip.travelStyle,
+      days: trip.itinerary.map(d => ({
+        dayNumber: d.dayNumber,
+        summary: d.summary,
+        activities: d.activities.map(a => ({
+          id: a.id,
+          title: a.title,
+          category: a.category,
+          time: `${a.startTime}-${a.endTime}`,
+          estimatedCost: a.estimatedCost,
+        })),
+      })),
+    };
+
+    const prompt = `
+You are TripUp AI's principal Travel Copilot assistant. You help travelers refine and modify their existing trip plans conversationally.
+Current Trip State:
+${JSON.stringify(tripOverview, null, 2)}
+
+User Instruction: "${userMessage}"
+${historySummary ? `Previous Context: ${historySummary}` : ''}
+
+CRITICAL RULES:
+1. Explain your recommendations in a concise, warm, professional reply (2-4 sentences max).
+2. If the user asks for changes (e.g. "make day 2 more relaxing", "replace an activity with rainy day indoor option", "reduce total budget", "add pure veg local food", "family friendly"), provide structured proposed changes.
+3. Ground all places and recommendations in real authentic venues in ${trip.destination}.
+4. Strictly respect dietary preferences (${trip.dietaryPreference}). If "pure_veg", all food stops must be 100% vegetarian.
+5. Return ONLY valid JSON matching this schema:
+{
+  "reply": "Conversational explanation of what you updated and why...",
+  "proposedChanges": [
+    {
+      "id": "prop-1",
+      "type": "replace_activity" | "add_activity" | "remove_activity" | "update_activity" | "adjust_budget" | "adjust_pace" | "update_day_summary",
+      "dayNumber": 1,
+      "targetActivityId": "act-id-to-replace-or-remove",
+      "oldValuePreview": "Brief string of old value",
+      "newValuePreview": "Brief string of new value",
+      "replacementActivity": {
+        "id": "new-act-id",
+        "title": "New Activity Title",
+        "description": "Specific guidance and highlights",
+        "address": "Verified landmark address",
+        "startTime": "HH:mm",
+        "endTime": "HH:mm",
+        "durationMinutes": 120,
+        "estimatedCost": 250,
+        "currency": "${trip.currency}",
+        "category": "culture",
+        "verificationStatus": "verified",
+        "weatherNote": "Optional weather note"
+      },
+      "newBudgetAmount": 20000,
+      "reason": "Clear travel rationale for why this improves the trip"
+    }
+  ]
+}
+`;
+
+    const generatePromise = ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.3,
+      },
+    });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI model timeout (exceeded 3.8s)')), 3800)
+    );
+
+    const response = await Promise.race([generatePromise, timeoutPromise]);
+    const text = response.text;
+    if (!text) {
+      throw new Error('Empty response from Copilot Gemini model');
+    }
+
+    const parsed = JSON.parse(text);
+    return {
+      reply: parsed.reply || `I have updated your itinerary according to your request.`,
+      proposedChanges: Array.isArray(parsed.proposedChanges) ? parsed.proposedChanges : [],
+    };
+  } catch (err) {
+    console.warn('Gemini Copilot fallback to smart engine:', err);
+    return generateSmartCopilotFallback(trip, userMessage);
+  }
+}
+

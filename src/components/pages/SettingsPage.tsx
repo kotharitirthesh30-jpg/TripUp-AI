@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTravel } from '../../context/TravelContext';
-import { Settings, User, DollarSign, Globe, Check, Shield } from 'lucide-react';
+import { Settings, User, DollarSign, Globe, Check, Shield, Key } from 'lucide-react';
+import { GoogleLoginButton } from '../auth/GoogleLoginButton';
 
 export const SettingsPage: React.FC = () => {
-  const { userProfile } = useTravel();
+  const { userProfile, updateUserProfile, authUser } = useTravel();
 
   const [name, setName] = useState(userProfile.name);
   const [email, setEmail] = useState(userProfile.email);
@@ -11,12 +12,19 @@ export const SettingsPage: React.FC = () => {
   const [timezone, setTimezone] = useState(userProfile.timezone);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  useEffect(() => {
+    setName(userProfile.name);
+    setEmail(userProfile.email);
+  }, [userProfile.name, userProfile.email]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    userProfile.name = name;
-    userProfile.email = email;
-    userProfile.preferredCurrency = currency;
-    userProfile.timezone = timezone;
+    updateUserProfile({
+      name,
+      email,
+      preferredCurrency: currency,
+      timezone,
+    });
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -34,6 +42,27 @@ export const SettingsPage: React.FC = () => {
         <p className="text-xs text-[#8da598]">
           Customize your default currencies, timezones, and display configurations.
         </p>
+      </div>
+
+      {/* Google Authentication & Cloud Auth Card */}
+      <div className="p-6 bg-[#121c17] border border-[#263b2f] rounded-2xl shadow-xl space-y-4 text-xs">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <Shield className="w-4 h-4 text-[#52b788]" />
+              <span>Google Account & Cloud Authentication</span>
+            </h2>
+            <p className="text-[#8da598] text-[11px]">
+              Authenticate with your Google account to sync itineraries, manage shared expenses, and protect trip versions with Firebase API keys.
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1b2b23] border border-[#2e5d4b] text-[10px] text-[#52b788] font-bold">
+            <Key className="w-3 h-3 text-[#52b788]" />
+            <span>Google API Key Active</span>
+          </div>
+        </div>
+
+        <GoogleLoginButton variant="full" />
       </div>
 
       <form onSubmit={handleSave} className="p-6 md:p-8 bg-[#121c17] border border-[#263b2f] rounded-2xl shadow-xl space-y-6 text-xs">

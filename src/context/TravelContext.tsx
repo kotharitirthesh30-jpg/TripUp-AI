@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Trip, Destination, UserProfile, Expense, Activity, TripMemberRole } from '../types/travel';
+import { Trip, Destination, UserProfile, Expense, Activity, TripMemberRole, TripVersionSnapshot } from '../types/travel';
 import { CURATED_DESTINATIONS } from '../data/curated-destinations';
-import { calculateBudgetSummary, convertTripCurrency, convertCurrency } from '../lib/trip-logic';
+import {
+  calculateBudgetSummary,
+  convertTripCurrency,
+  convertCurrency,
+  createTripVersionSnapshot,
+  restoreTripVersion,
+  swapTripDays
+} from '../lib/trip-logic';
+import { auth, loginWithGoogle, logoutUser, onAuthStateChanged, User } from '../lib/firebase';
 
 interface TravelContextType {
   trips: Trip[];
@@ -9,6 +17,10 @@ interface TravelContextType {
   savedDestinationIds: string[];
   destinations: Destination[];
   userProfile: UserProfile;
+  authUser: User | null;
+  authLoading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOutUser: () => Promise<void>;
   currentCurrency: string;
   setCurrentCurrency: (currency: string) => void;
   changeTripCurrency: (tripId: string, newCurrency: string) => void;
@@ -27,12 +39,16 @@ interface TravelContextType {
   reorderActivities: (tripId: string, dayId: string, newActivities: Activity[]) => void;
   selectRouteOption: (tripId: string, routeOptionId: string) => void;
   selectActivityOption: (tripId: string, dayId: string, activityId: string, optionId: string) => void;
+  createTripSnapshot: (tripId: string, name?: string) => TripVersionSnapshot;
+  restoreTripSnapshot: (tripId: string, snapshotId: string) => void;
+  deleteTripSnapshot: (tripId: string, snapshotId: string) => void;
+  swapDays: (tripId: string, dayNumberA: number, dayNumberB: number) => void;
 }
 
 const DEFAULT_PROFILE: UserProfile = {
   id: 'usr-101',
-  name: 'Alex Rivera',
-  email: 'alex.rivera@example.com',
+  name: 'TIRTHESH KOTHARI',
+  email: 'kotharitirthesh30@gmail.com',
   preferredCurrency: 'USD',
   timezone: 'America/Los_Angeles',
   homeAirport: 'SFO',
@@ -282,8 +298,8 @@ const INITIAL_TRIPS: Trip[] = [
       {
         id: 'mem-1',
         tripId: 'trip-kyoto-2026',
-        name: 'Alex Rivera',
-        email: 'alex.rivera@example.com',
+        name: 'TIRTHESH KOTHARI',
+        email: 'kotharitirthesh30@gmail.com',
         role: 'owner',
         joinedAt: '2026-10-20T10:00:00Z',
       },
@@ -305,7 +321,27 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [trips, setTrips] = useState<Trip[]>(() => {
     try {
       const saved = localStorage.getItem('tripup_ai_trips');
-      return saved ? JSON.parse(saved) : INITIAL_TRIPS;
+      const loaded: Trip[] = saved ? JSON.parse(saved) : INITIAL_TRIPS;
+      // Auto-migrate legacy owner 'Alex Rivera' to 'TIRTHESH KOTHARI' / 'kotharitirthesh30@gmail.com'
+      return loaded.map(trip => ({
+        ...trip,
+        members: trip.members && trip.members.length > 0
+          ? trip.members.map(m =>
+              m.role === 'owner' || m.email === 'alex.rivera@example.com' || m.name === 'Alex Rivera'
+                ? { ...m, name: 'TIRTHESH KOTHARI', email: 'kotharitirthesh30@gmail.com' }
+                : m
+            )
+          : [
+              {
+                id: 'mem-1',
+                tripId: trip.id,
+                name: 'TIRTHESH KOTHARI',
+                email: 'kotharitirthesh30@gmail.com',
+                role: 'owner',
+                joinedAt: trip.createdAt || new Date().toISOString(),
+              },
+            ],
+      }));
     } catch {
       return INITIAL_TRIPS;
     }
@@ -321,7 +357,25 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
-  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('tripup_ai_user_profile');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.email === 'alex.rivera@example.com' || parsed.name === 'Alex Rivera') {
+          return {
+            ...parsed,
+            name: 'TIRTHESH KOTHARI',
+            email: 'kotharitirthesh30@gmail.com',
+          };
+        }
+        return parsed;
+      }
+      return DEFAULT_PROFILE;
+    } catch {
+      return DEFAULT_PROFILE;
+    }
+  });
   const [currentCurrency, setCurrentCurrencyState] = useState<string>(() => {
     try {
       return localStorage.getItem('tripup_ai_currency') || 'INR';
@@ -373,6 +427,71 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('Storage sync error:', e);
     }
   }, [savedDestinationIds]);
+
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+
+  // Sync Firebase Auth user
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      setAuthUser(user);
+      setAuthLoading(false);
+      if (user) {
+        setUserProfile(prev => ({
+          ...prev,
+          id: user.uid,
+          name: user.displayName || prev.name,
+          email: user.email || prev.email,
+          avatarUrl: user.photoURL || prev.avatarUrl,
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = async () => {
+    try {
+      const user = await loginWithGoogle();
+      if (user) {
+        setUserProfile(prev => ({
+          ...prev,
+          id: user.uid,
+          name: user.displayName || prev.name,
+          email: user.email || prev.email,
+          avatarUrl: user.photoURL || prev.avatarUrl,
+        }));
+      }
+    } catch (err) {
+      console.error('Google Sign-in failed:', err);
+      throw err;
+    }
+  };
+
+  const signOutUser = async () => {
+    try {
+      await logoutUser();
+      setAuthUser(null);
+    } catch (err) {
+      console.error('Sign-out failed:', err);
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tripup_ai_trips', JSON.stringify(trips));
+    } catch (e) {
+      console.warn('Trips storage sync error:', e);
+    }
+  }, [trips]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tripup_ai_user_profile', JSON.stringify(userProfile));
+    } catch (e) {
+      console.warn('Profile storage sync error:', e);
+    }
+  }, [userProfile]);
 
   const activeTrip = trips.find(t => t.id === activeTripId) || trips[0] || null;
 
@@ -620,6 +739,56 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   };
 
+  const createTripSnapshot = (tripId: string, name?: string): TripVersionSnapshot => {
+    const target = trips.find(t => t.id === tripId);
+    if (!target) throw new Error('Trip not found');
+    const snapshot = createTripVersionSnapshot(target, name);
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          versions: [snapshot, ...(t.versions || [])],
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+    return snapshot;
+  };
+
+  const restoreTripSnapshot = (tripId: string, snapshotId: string) => {
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id !== tripId) return t;
+        const snap = t.versions?.find(v => v.id === snapshotId);
+        if (!snap) return t;
+        return restoreTripVersion(t, snap);
+      })
+    );
+  };
+
+  const deleteTripSnapshot = (tripId: string, snapshotId: string) => {
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id !== tripId) return t;
+        return {
+          ...t,
+          versions: (t.versions || []).filter(v => v.id !== snapshotId),
+          updatedAt: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
+  const swapDays = (tripId: string, dayNumberA: number, dayNumberB: number) => {
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id !== tripId) return t;
+        return swapTripDays(t, dayNumberA, dayNumberB);
+      })
+    );
+  };
+
   return (
     <TravelContext.Provider
       value={{
@@ -628,6 +797,10 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         savedDestinationIds,
         destinations: CURATED_DESTINATIONS,
         userProfile,
+        authUser,
+        authLoading,
+        signInWithGoogle,
+        signOutUser,
         currentCurrency,
         setCurrentCurrency,
         changeTripCurrency,
@@ -646,6 +819,10 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         reorderActivities,
         selectRouteOption,
         selectActivityOption,
+        createTripSnapshot,
+        restoreTripSnapshot,
+        deleteTripSnapshot,
+        swapDays,
       }}
     >
       {children}

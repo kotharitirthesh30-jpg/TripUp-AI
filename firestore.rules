@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.id is string && data.id == request.auth.uid &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 150 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 120;
+    }
+
+    function isValidTrip(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.destination is string && data.destination.size() > 0 && data.destination.size() <= 150;
+    }
+
+    // User profile documents - private to each traveler
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false; // Users cannot list all profiles
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) &&
+                       incoming().id == existing().id;
+      allow delete: if isOwner(userId) && isValidId(userId);
+    }
+
+    // Trips collection
+    match /trips/{tripId} {
+      allow get: if isSignedIn() && isValidId(tripId) &&
+                    (resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(tripId) &&
+                       incoming().userId == request.auth.uid &&
+                       isValidTrip(incoming());
+      allow update: if isSignedIn() && isValidId(tripId) &&
+                       existing().userId == request.auth.uid &&
+                       incoming().userId == existing().userId &&
+                       isValidTrip(incoming());
+      allow delete: if isSignedIn() && isValidId(tripId) &&
+                       existing().userId == request.auth.uid;
+    }
+  }
+}
