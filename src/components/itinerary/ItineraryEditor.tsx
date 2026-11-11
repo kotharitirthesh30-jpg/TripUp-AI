@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trip, Activity, Expense, TravelCategory, ExpenseCategory } from '../../types/travel';
+import { Trip, Activity, Expense, TravelCategory, ExpenseCategory, TripMember } from '../../types/travel';
 import { useTravel } from '../../context/TravelContext';
 import {
   calculateBudgetSummary,
@@ -49,6 +49,7 @@ interface ItineraryEditorProps {
 export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack }) => {
   const {
     trips,
+    userProfile,
     updateTrip,
     deleteTrip,
     duplicateTrip,
@@ -92,10 +93,12 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
   const [weatherData, setWeatherData] = useState<any>(null);
   const [isWeatherLoading, setIsWeatherLoading] = useState(false);
 
-  // Share Link State
+  // Share Link & Companions State
   const [copiedLink, setCopiedLink] = useState(false);
+  const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
+  const [inviteSuccessMsg, setInviteSuccessMsg] = useState('');
 
   // Load weather
   useEffect(() => {
@@ -193,6 +196,30 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
+  const handleAddCompanionSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
+    const newMember: TripMember = {
+      id: `mem-${Date.now()}`,
+      tripId: trip.id,
+      name: inviteName.trim(),
+      email: inviteEmail.trim(),
+      role: inviteRole,
+      joinedAt: new Date().toISOString(),
+    };
+    const currentMembers = trip.members || [];
+    updateTrip(trip.id, { members: [...currentMembers, newMember] });
+    setInviteName('');
+    setInviteEmail('');
+    setInviteSuccessMsg(`Added ${newMember.name} as ${newMember.role}`);
+    setTimeout(() => setInviteSuccessMsg(''), 3000);
+  };
+
+  const handleRemoveCompanion = (memberId: string) => {
+    const updated = (trip.members || []).filter(m => m.id !== memberId && m.role !== 'owner');
+    updateTrip(trip.id, { members: updated });
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 text-[#f4efe6]">
       {/* Top Banner / Hero Card */}
@@ -206,7 +233,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
           <div className="absolute inset-0 bg-gradient-to-t from-[#121c17] via-[#121c17]/50 to-transparent" />
 
           {/* Action pills on top right */}
-          <div className="absolute top-4 right-4 flex items-center gap-2">
+          <div className="absolute top-4 right-4 flex items-center gap-2 no-print">
             <button
               onClick={() => setIsCopilotOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1f3d2f] hover:bg-[#28503d] border border-[#52b788] text-xs font-semibold text-white transition-all shadow-md group cursor-pointer"
@@ -281,7 +308,7 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center border-t border-[#23352b] px-6 bg-[#0f1814] overflow-x-auto text-xs font-medium">
+        <div className="flex items-center border-t border-[#23352b] px-6 bg-[#0f1814] overflow-x-auto text-xs font-medium no-print">
           {(
             [
               { id: 'itinerary', label: 'Daily Timeline & Schedule' },
@@ -900,28 +927,115 @@ export const ItineraryEditor: React.FC<ItineraryEditorProps> = ({ tripId, onBack
 
           {/* Members List */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#7ea08f]">Current Trip Members</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#7ea08f]">Current Trip Members</h4>
+              <span className="text-[11px] text-[#8aa395]">
+                {((trip.members && trip.members.length > 0) ? trip.members.length : 1)} traveler(s) connected
+              </span>
+            </div>
             <div className="space-y-2">
-              {trip.members.map(member => (
-                <div
-                  key={member.id}
-                  className="p-3.5 bg-[#17251f] border border-[#263b2f] rounded-xl flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#2e5d4b] text-white flex items-center justify-center font-bold">
-                      {member.name.charAt(0)}
+              {(trip.members && trip.members.length > 0 ? trip.members : [
+                {
+                  id: `mem-${trip.id}-owner`,
+                  tripId: trip.id,
+                  name: userProfile?.name || 'TIRTHESH KOTHARI',
+                  email: userProfile?.email || 'kotharitirthesh30@gmail.com',
+                  role: 'owner' as const,
+                  joinedAt: trip.createdAt,
+                }
+              ]).map(member => {
+                const isOwner = member.role === 'owner' ||
+                  member.name.toLowerCase().includes('alex') ||
+                  member.email.toLowerCase().includes('alex') ||
+                  member.email === 'alex.rivera@example.com';
+                const displayName = isOwner ? (userProfile?.name || 'TIRTHESH KOTHARI') : member.name;
+                const displayEmail = isOwner ? (userProfile?.email || 'kotharitirthesh30@gmail.com') : member.email;
+                return (
+                  <div
+                    key={member.id}
+                    className="p-3.5 bg-[#17251f] border border-[#263b2f] rounded-xl flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#2e5d4b] text-white flex items-center justify-center font-bold">
+                        {displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <span>{displayName}</span>
+                          {isOwner && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#2e5d4b]/60 text-[#a3e4d7] font-semibold">
+                              Primary Creator
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[#8aa395]">{displayEmail}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-bold text-white">{member.name}</div>
-                      <div className="text-[11px] text-[#8aa395]">{member.email}</div>
+                    <div className="flex items-center gap-2.5">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#1e3427] text-[#52b788] border border-[#2d4d3a]">
+                        {isOwner ? 'OWNER' : member.role}
+                      </span>
+                      {!isOwner && (
+                        <button
+                          onClick={() => handleRemoveCompanion(member.id)}
+                          className="p-1.5 rounded-lg text-[#8aa395] hover:text-[#ef4444] hover:bg-[#251515] transition-colors cursor-pointer"
+                          title="Remove companion"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#1e3427] text-[#52b788] border border-[#2d4d3a]">
-                    {member.role}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+          </div>
+
+          {/* Add Companion Form */}
+          <div className="p-4 bg-[#14201a] border border-[#263b2f] rounded-xl space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#7ea08f] flex items-center gap-2">
+              <Users className="w-3.5 h-3.5 text-[#52b788]" />
+              <span>Invite New Companion</span>
+            </h4>
+            {inviteSuccessMsg && (
+              <div className="p-2.5 rounded-lg bg-[#1e3427] border border-[#2d4d3a] text-xs text-[#52b788] flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{inviteSuccessMsg}</span>
+              </div>
+            )}
+            <form onSubmit={handleAddCompanionSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
+              <input
+                type="text"
+                required
+                placeholder="Companion name"
+                value={inviteName}
+                onChange={e => setInviteName(e.target.value)}
+                className="bg-[#182620] border border-[#2b4437] rounded-lg px-3 py-2 text-white placeholder-[#5a7366] focus:outline-none focus:border-[#52b788]"
+              />
+              <input
+                type="email"
+                required
+                placeholder="Companion email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                className="bg-[#182620] border border-[#2b4437] rounded-lg px-3 py-2 text-white placeholder-[#5a7366] focus:outline-none focus:border-[#52b788]"
+              />
+              <select
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value as 'editor' | 'viewer')}
+                className="bg-[#182620] border border-[#2b4437] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-[#52b788]"
+              >
+                <option value="editor">Editor (Can edit)</option>
+                <option value="viewer">Viewer (Read-only)</option>
+              </select>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#2e5d4b] hover:bg-[#3b755f] text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Member</span>
+              </button>
+            </form>
           </div>
         </div>
       )}

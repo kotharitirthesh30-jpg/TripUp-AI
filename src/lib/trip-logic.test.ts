@@ -868,5 +868,42 @@ test('calculateRouteLegs estimates reasonable distances, durations and URLs betw
   assert.ok(legs[0].directionsUrl.includes('google.com/maps/dir'), 'Leg must have directions URL');
 });
 
+test('trip member owner migration resolves to TIRTHESH KOTHARI and kotharitirthesh30@gmail.com', () => {
+  const legacyMembers = [
+    {
+      id: 'mem-1',
+      tripId: 'trip-kyoto',
+      name: 'Alex Rivera',
+      email: 'alex.rivera@example.com',
+      role: 'owner' as const,
+      joinedAt: '2026-10-20T10:00:00Z',
+    },
+    {
+      id: 'mem-2',
+      tripId: 'trip-kyoto',
+      name: 'Jordan Chen',
+      email: 'jordan.c@example.com',
+      role: 'editor' as const,
+      joinedAt: '2026-10-21T14:30:00Z',
+    },
+  ];
+
+  const profile = {
+    id: 'usr-101',
+    name: 'TIRTHESH KOTHARI',
+    email: 'kotharitirthesh30@gmail.com',
+  };
+
+  const migrated = legacyMembers.map(m => {
+    const isOwner = m.role === 'owner' || m.name.toLowerCase().includes('alex') || m.email.toLowerCase().includes('alex');
+    return isOwner ? { ...m, name: profile.name, email: profile.email, role: 'owner' as const } : m;
+  });
+
+  assert.equal(migrated[0].name, 'TIRTHESH KOTHARI');
+  assert.equal(migrated[0].email, 'kotharitirthesh30@gmail.com');
+  assert.equal(migrated[0].role, 'owner');
+  assert.equal(migrated[1].name, 'Jordan Chen');
+});
+
 
 

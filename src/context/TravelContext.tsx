@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Trip, Destination, UserProfile, Expense, Activity, TripMemberRole, TripVersionSnapshot } from '../types/travel';
+import { Trip, Destination, UserProfile, Expense, Activity, TripMemberRole, TripVersionSnapshot, TripMember } from '../types/travel';
 import { CURATED_DESTINATIONS } from '../data/curated-destinations';
 import {
   calculateBudgetSummary,
@@ -7,7 +7,8 @@ import {
   convertCurrency,
   createTripVersionSnapshot,
   restoreTripVersion,
-  swapTripDays
+  swapTripDays,
+  cleanMapsLocation,
 } from '../lib/trip-logic';
 import { auth, loginWithGoogle, logoutUser, onAuthStateChanged, User } from '../lib/firebase';
 
@@ -323,17 +324,28 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const saved = localStorage.getItem('tripup_ai_trips');
       const loaded: Trip[] = saved ? JSON.parse(saved) : INITIAL_TRIPS;
       // Auto-migrate legacy owner 'Alex Rivera' to 'TIRTHESH KOTHARI' / 'kotharitirthesh30@gmail.com'
+      // and sanitize any legacy placeholder addresses like 'Midway Highway Stop'
       return loaded.map(trip => ({
         ...trip,
+        itinerary: (trip.itinerary || []).map(day => ({
+          ...day,
+          activities: (day.activities || []).map(act => ({
+            ...act,
+            address: cleanMapsLocation(act.title, act.address, trip.destination),
+            title: act.title.replace(/Midway Highway Stop en route to [^,]+/i, 'Scenic Mountain Corridor Route'),
+          })),
+        })),
         members: trip.members && trip.members.length > 0
           ? trip.members.map(m =>
-              m.role === 'owner' || m.email === 'alex.rivera@example.com' || m.name === 'Alex Rivera'
-                ? { ...m, name: 'TIRTHESH KOTHARI', email: 'kotharitirthesh30@gmail.com' }
+              m.role === 'owner' ||
+              m.email.toLowerCase().includes('alex') ||
+              m.name.toLowerCase().includes('alex')
+                ? { ...m, name: 'TIRTHESH KOTHARI', email: 'kotharitirthesh30@gmail.com', role: 'owner' as const }
                 : m
             )
           : [
               {
-                id: 'mem-1',
+                id: `mem-${trip.id}-owner`,
                 tripId: trip.id,
                 name: 'TIRTHESH KOTHARI',
                 email: 'kotharitirthesh30@gmail.com',
@@ -427,6 +439,54 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.warn('Storage sync error:', e);
     }
   }, [savedDestinationIds]);
+
+  // Synchronize trip owner across all trips with active profile
+  useEffect(() => {
+    setTrips(prev => {
+      let changed = false;
+      const updated = prev.map(trip => {
+        const members: TripMember[] = trip.members || [];
+        const hasOwner = members.some(m => m.role === 'owner');
+        const updatedMembers: TripMember[] = members.map((m: TripMember): TripMember => {
+          if (m.role === 'owner' || m.name.toLowerCase().includes('alex') || m.email.toLowerCase().includes('alex')) {
+            if (m.name !== userProfile.name || m.email !== userProfile.email) {
+              changed = true;
+              return { ...m, name: userProfile.name, email: userProfile.email, role: 'owner' };
+            }
+          }
+          return m;
+        });
+
+        if (!hasOwner) {
+          changed = true;
+          const ownerMember: TripMember = {
+            id: `mem-${trip.id}-owner`,
+            tripId: trip.id,
+            name: userProfile.name,
+            email: userProfile.email,
+            role: 'owner',
+            joinedAt: trip.createdAt || new Date().toISOString(),
+          };
+          return {
+            ...trip,
+            members: [ownerMember, ...updatedMembers],
+          };
+        }
+
+        return changed ? { ...trip, members: updatedMembers } : trip;
+      });
+
+      if (changed) {
+        try {
+          localStorage.setItem('tripup_ai_trips', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('Storage sync error:', e);
+        }
+        return updated;
+      }
+      return prev;
+    });
+  }, [userProfile.name, userProfile.email]);
 
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
